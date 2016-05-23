@@ -132,9 +132,9 @@ To run community detection with community number as 5 and aglorithm 4:
 
 -r 4 means using k community core, which don't have extra parameters except k
 
-To run community detection sampling algorithm based on Girvan-Newman, with community number as 5 and sample probability as 0.2:
+To run community detection sampling algorithm based on Girvan-Newman, with community number as 5 and sample probability as 0.1:
 
-./bin/sae -i ./data/facebook -o ./output/facebook -t cs -k 5 -p 0.2
+./bin/sae -i ./data/facebook -o ./output/facebook -t cs -k 5 -p 0.1
 
 #### Example for SimRank
 The input file is placed at ./data/facebook, and output file will be placed at ./output/facebook
