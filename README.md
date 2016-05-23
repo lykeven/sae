@@ -53,7 +53,11 @@ sr: run SimRank ;
 
 [-r INT:run]: choose a algorithm for SimRank;
 
-[-s INT:start]: the querying node,which should be exits in the dataset;
+[-c FLOAT:constant]: weaken factor for SimRank, which between 0~1,default value is 0.8;
+
+[-s INT:start]: the querying node, which should be exits in the dataset;
+
+[-q STRING:query file]: the querying file, which contain query nodes.Each line has a node number;
 
 [-k INT:K]: the number of Top K;
 
@@ -114,35 +118,38 @@ x2 y2
 
 
 ##### Example for Community Detection
-The input file is placed at ./data/facebook
+The input file is placed at ./data/facebook, and output file will be placed at ./output/facebook
 
+To run community detection with community number as 5 and aglorithm 4:
 
-To run community detection with community number as 5 and aglorithm 2:
+./bin/sae -i ./data/facebook -o ./output/facebook -t cd -k 5 -r 4
 
-./bin/sae -i ./data/facebook -t cd -k 5 -r 2
+-r 1 means using Girvan-Newman aglorithm , which runs pretty slowly. This algorithm is not recommended when the network has more than 1000 nodes.
 
--r 1 means using Girvan-Newman aglorithm
+-r 2 means using label propagation aglorithm, and k should not be appointed
 
--r 2 means using label propagation aglorithm
+-r 3 means using louvain method, and k should not be appointed
 
--r 3 means using louvain method
+-r 4 means using k community core, which don't have extra parameters except k
 
--r 4 means using k community core 
+To run community detection sampling algorithm based on Girvan-Newman, with community number as 5 and sample probability as 0.2:
 
-To run community detection sampling method with community number as 5 and sample probability as 0.01:
-
-./bin/sae -i ./data/facebook -t cs -k 5 -p 0.01
+./bin/sae -i ./data/facebook -o ./output/facebook -t cs -k 5 -p 0.2
 
 #### Example for SimRank
-The input file is placed at ./data/facebook
+The input file is placed at ./data/facebook, and output file will be placed at ./output/facebook
 
-To run simrank precisely with querying node 1's Top 50 similar nodes,which use Partial Sums Memoization algorithm
+To query node 1's Top 50 similar nodes with using Partial Sums Memoization algorithm and weaken factor is 0.8 
 
-./bin/sae -i ./data/facebook -t sr -r 0 -s 1 -k 50
+./bin/sae -i ./data/facebook -o ./output/facebook -t sr -r 0 -c 0.8 -s 1 -k 50
 
-To run simrank approximately with querying node 2's Top 20 similar nodes,which use Random Walk algorithm
+To run query node 2's Top 20 similar nodes with using Random Walk algorithm 
 
-./bin/sae -i ./data/facebook -t sr -r 1 -s 2 -k 20
+./bin/sae -i ./data/facebook -o ./output/facebook -t sr -r 1 -s 2 -k 20
+
+To query Top 20 similar nodes of multiple nodes, which user defined in query file "./output/query.txt"
+
+./bin/sae -i ./data/facebook -o ./output/facebook -t sr -r 1 -q  ./output/query.txt -k 20
 
 ##### Example for Propensity Score Matching
 ./bin/sae -i ./data/expert -t psm

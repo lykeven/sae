@@ -33,10 +33,11 @@ DEF_ARGUMENT_CLASS(
 	Argument,
 	std::string,	input,		"",				REQUIRED,   OPT_SLH(-i, --input, "input data"),
     std::string,    output,     "./output",     OPTIONAL,   OPT_SLH(-o, --output, "output direction"),
+    std::string,    query,     "",     OPTIONAL,   OPT_SLH(-q, --query, "query file "),
     std::string,    task,       "",             OPTIONAL,   OPT_SLH(-t, --task, "declear task:im(inf-max), dd(degree), pr(PageRank), tr(triangle), sp(ShortestPath), social(social analysis)\n"),
     int,            para_im_k,  "2",            OPTIONAL,   OPT_SLH(-k, --seed, "seed size"),
     std::string,    para_edge_w,    "rand",     OPTIONAL,   OPT_SLH(-w, --weight, "edge weights:rand,const,deg"),
-    double,         para_const, 0.0,            OPTIONAL,   OPT_SLH(-c, -constant, "constant value"),
+    double,         para_const, 0.8,            OPTIONAL,   OPT_SLH(-c, -constant, "constant value"),
     int,            para_start, "0",            OPTIONAL,   OPT_SLH(-s, --start, "start point"),
     int,            para_end, "1",            OPTIONAL,   OPT_SLH(-e, --end, "end point"),
     int,            para_cd_task, 1,            OPTIONAL,   OPT_SLH(-r, --run, "run community detection sub task"),
@@ -285,7 +286,7 @@ void runCommunityDetection(MappedGraph *graph,string input,int sub_task,int K)
     printf( "\tmodularity is %.4f\n",ans.second);
     printf( "\tRunning time of Community detection: %.4f\n",(end_time - start_time + 0.0) / CLOCKS_PER_SEC );
 
-	FILE* fout = fopen((  output_dir+"/community_detection").c_str(), "w");
+	FILE* fout = fopen((  output_dir).c_str(), "w");
 	fprintf(fout, "modularity is %.4f\nvertex_id\tcommunity_id\n",ans.second);
 	readNodeMap(input);
 	for(unsigned int i=0;i<ans.first.size();i++)
@@ -296,7 +297,7 @@ void runCommunityDetection(MappedGraph *graph,string input,int sub_task,int K)
 void runCommunityDetectionSampling(MappedGraph *graph,string input,int sub_task,double p,int K)
 {
     cout<<"\tRun community detection sampling algorithm"<<endl<<endl;
-	FILE* fout = fopen((  output_dir+"/community_detection_sampling").c_str(), "w");
+	FILE* fout = fopen((  output_dir).c_str(), "w");
     time_t start_time = clock();
     Community_detection_sampling cd(graph);
     //cd.test_community_sampling(graph,10,90,2,4);
@@ -566,20 +567,43 @@ void runDynamicMinimumSpanningTree(int mode,string file_path)
 }
 
 
-void runSimRank(MappedGraph *graph,string input,int sub_task,vid_t v,int K)
+void runSimRank(MappedGraph *graph,string input,string query,int sub_task,double c,vid_t v,int K)
 {
     cout<<"\tRun simrank algorithm"<<endl<<endl;
-	FILE* fout = fopen((  output_dir+"/simRank").c_str(), "w");
+	FILE* fout = fopen((  output_dir).c_str(), "w");
     bool is_accurate=(sub_task==0);
     SimRank sr(graph);
     time_t start_time = clock();
     readNodeMap(input);
-    vector<pair<double, vid_t> > ans=sr.solve(mapToSae[v],is_accurate);
+    vector<vid_t> query_list;
+    vector<vid_t> query_list_real;
+    if(query!="")
+    {
+        ifstream fin(query.c_str());
+        vid_t id;
+        while(1)
+        {
+            if(!(fin>>id)) break;
+            query_list.push_back(mapToSae[id]);
+            query_list_real.push_back(id);
+        }
+    }
+    else
+    {
+        query_list.push_back(mapToSae[v]);
+        query_list_real.push_back(v);
+    }
+
+    vector<vector<pair<double, vid_t> >> ans=sr.solve(query_list,is_accurate,c);
     time_t end_time = clock();
-    readNodeMap(input);
-    fprintf(fout,"%d\n",K);
-    for (int i=0;i<K;i++)
-            fprintf(fout,"%llu\t%f\n",mapToReal[ans[i].second],ans[i].first);
+    for(int j=0;j<query_list.size();j++)
+    {
+        fprintf(fout,"%llu\t%d\n",query_list_real[j],K);
+        for (int i=0;i<K;i++)
+            fprintf(fout,"%llu\t%f\n",mapToReal[ans[j][i].second],ans[j][i].first);
+        fprintf(fout,"\n\n");
+    }
+
     printf( "Running time of simrank algorithm: %.4f\n",(end_time - start_time + 0.0) / CLOCKS_PER_SEC);
 }
 
@@ -607,14 +631,16 @@ int main(int argc, char **argv) {
 
     string task = args.task();
     string input= args.input();
+    string query=args.query();
     printf("Input: %s\n", input.c_str());
     // declare output file direction
     if (args.output().length() > 0) {
         output_dir = args.output().c_str();
     }
-    system(("mkdir -p " + output_dir).c_str());
+    //system(("mkdir -p " + output_dir).c_str());
     printf("Output: %s\n", output_dir.c_str());
     double p=args.para_sample_probability();
+    double c = args.para_const();
     int sub_task=args.para_cd_task();
     int K =args.para_im_k();
     vid_t v=args.para_start();
@@ -669,7 +695,7 @@ int main(int argc, char **argv) {
     }
 
     if (task =="sr"){
-        runSimRank(graph,input,sub_task,v,K);
+        runSimRank(graph,input,query,sub_task,c,v,K);
     }
 
     //declare task
