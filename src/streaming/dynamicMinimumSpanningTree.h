@@ -1,6 +1,7 @@
 #include "solver/solverForStreaming.h"
 #include <vector>
 #include <string>
+#include <map>
 
 typedef long long LL;
 typedef std::uint64_t vid_t;
@@ -34,18 +35,26 @@ class lctNode
 
 class dynamicMinimumSpanningTree:public sae::SolverForStreaming<resultMST*>
 {
+	std::map<long long,int> p;
+	std::map<long long,int>::iterator it1,it2;
+	std::vector<long long> g;
+	int n,m;
+	std::vector<std::pair<std::pair<int,int>,double> > data_edge;
+	void Zig(lctNode*);
+	void Zag(lctNode*);
+	void Splay(lctNode*);
+	void Access(lctNode*);
+	lctNode *findRoot(lctNode*);
+	void moveToRoot(lctNode*);
+	void Link(lctNode*,lctNode*);
+	void Cut(lctNode*,lctNode*);
+	int Query(lctNode*,lctNode*);
+	int Insert(lctNode*,lctNode*,double);
+	resultMST* _solve();
 	public:
-		void Zig(lctNode*);
-		void Zag(lctNode*);
-		void Splay(lctNode*);
-		void Access(lctNode*);
-		lctNode *findRoot(lctNode*);
-		void moveToRoot(lctNode*);
-		void Link(lctNode*,lctNode*);
-		void Cut(lctNode*,lctNode*);
-		int Query(lctNode*,lctNode*);
-		int Insert(lctNode*,lctNode*,double);
-		dynamicMinimumSpanningTree(std::string file_path);
+	dynamicMinimumSpanningTree(std::string file_path);
     	~dynamicMinimumSpanningTree();
     	resultMST* solve();  //return edge's two vertexs and its weight in MST
+	resultMST* solve_raw(int);  //return edge's two vertexs and its weight in MST with raw data
+
 };

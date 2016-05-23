@@ -33,13 +33,14 @@ DEF_ARGUMENT_CLASS(
 	Argument,
 	std::string,	input,		"",				REQUIRED,   OPT_SLH(-i, --input, "input data"),
     std::string,    output,     "./output",     OPTIONAL,   OPT_SLH(-o, --output, "output direction"),
+    std::string,    query,     "",     OPTIONAL,   OPT_SLH(-q, --query, "query file "),
     std::string,    task,       "",             OPTIONAL,   OPT_SLH(-t, --task, "declear task:im(inf-max), dd(degree), pr(PageRank), tr(triangle), sp(ShortestPath), social(social analysis)\n"),
     int,            para_im_k,  "2",            OPTIONAL,   OPT_SLH(-k, --seed, "seed size"),
     std::string,    para_edge_w,    "rand",     OPTIONAL,   OPT_SLH(-w, --weight, "edge weights:rand,const,deg"),
-    double,         para_const, 0.0,            OPTIONAL,   OPT_SLH(-c, -constant, "constant value"),
+    double,         para_const, 0.8,            OPTIONAL,   OPT_SLH(-c, -constant, "constant value"),
     int,            para_start, "0",            OPTIONAL,   OPT_SLH(-s, --start, "start point"),
     int,            para_end, "1",            OPTIONAL,   OPT_SLH(-e, --end, "end point"),
-    int,            para_cd_task, 4,            OPTIONAL,   OPT_SLH(-r, --run, "run community detection sub task"),
+    int,            para_cd_task, 1,            OPTIONAL,   OPT_SLH(-r, --run, "run community detection sub task"),
     double,            para_sample_probability, 0.01,            OPTIONAL,   OPT_SLH(-p, --probability, "sample probability for aglorithm")
 );
 
@@ -119,6 +120,8 @@ void makeFakeData(int numVertex=10, double p = 0.1, int properties_num = 3) {
 
 
 map<string, int> nodeMap;
+map<vid_t, vid_t> mapToReal;
+map<vid_t, vid_t> mapToSae;
 
 int GetOrInsert(const string& key)
 {
@@ -126,7 +129,9 @@ int GetOrInsert(const string& key)
     if (it != nodeMap.end())
         return it -> second;
     int id = (int) nodeMap.size();
+    int real_id=atoi(key.c_str());
     nodeMap.insert(make_pair(key, id));
+    mapToReal.insert(make_pair(id, real_id));
     return id;
 }
 
@@ -149,9 +154,30 @@ int makeData(string input,string output) {
         graph.AddEdge(b, a, 0);
     }
     cout << graph.VertexCount() << " " << graph.EdgeCount() << endl;
-    graph.Save(output.c_str());
+    graph.Save((output).c_str());
+    FILE* fout = fopen(( output+"_map").c_str(), "w");
+    map<vid_t, vid_t>::iterator it;
+    for(it=mapToReal.begin();it!=mapToReal.end();++it)
+    {
+        fprintf(fout,"%llu\t%llu\n",it->first,it->second);
+    }
+    fclose(fout);
     return 0;
 }
+
+void readNodeMap(string input)
+{
+    mapToReal.clear();
+    mapToSae.clear();
+    ifstream fin((input+"_map").c_str());
+    vid_t x,y;
+    while(1){
+        if (!(fin >> x >> y)) break;
+        mapToReal.insert(make_pair(x,y));
+         mapToSae.insert(make_pair(y,x));
+    }
+}
+
 
 int makeDataForStreaming(){
 	ifstream fin("./resource/facebook.txt");
@@ -249,10 +275,8 @@ void runShortestPath(MappedGraph *graph, long long start, long long end, bool re
     time_t end_time = clock();
     cout << "Running time of Shortest_Path: " << (end_time - start_time + 0.0) / CLOCKS_PER_SEC << endl;
 }
-
 void runCommunityDetection(MappedGraph *graph,string input,int sub_task,int K)
 {
-    system("mkdir -p output/community_detection");
     cout<<"\tRun community detection algorithm"<<endl<<endl;
     time_t start_time = clock();
     Community_detection cd(graph);
@@ -262,32 +286,26 @@ void runCommunityDetection(MappedGraph *graph,string input,int sub_task,int K)
     printf( "\tmodularity is %.4f\n",ans.second);
     printf( "\tRunning time of Community detection: %.4f\n",(end_time - start_time + 0.0) / CLOCKS_PER_SEC );
 
-	int i=input.size();
-	for(;i>=0;i--) if(input[i]=='/') break;
-	string filename=input.substr(i+1);
-	FILE* fout = fopen((  "output/community_detection/"+filename).c_str(), "w");
-	fprintf(fout, "Running time of Community detection: %.4f\n",(end_time - start_time + 0.0) / CLOCKS_PER_SEC );
+	FILE* fout = fopen((  output_dir).c_str(), "w");
 	fprintf(fout, "modularity is %.4f\nvertex_id\tcommunity_id\n",ans.second);
+	readNodeMap(input);
 	for(unsigned int i=0;i<ans.first.size();i++)
-        fprintf(fout, "%d\t%d\n",i,ans.first[i]);
+        fprintf(fout, "%llu\t%llu\n",mapToReal[i],ans.first[i]);
 	fclose(fout);
 }
 
 void runCommunityDetectionSampling(MappedGraph *graph,string input,int sub_task,double p,int K)
 {
     cout<<"\tRun community detection sampling algorithm"<<endl<<endl;
-     system("mkdir -p output/community_detection_sampling");
-    int i=input.size();
-	for(;i>=0;i--) if(input[i]=='/') break;
-	string filename=input.substr(i+1);
-	FILE* fout = fopen((  "output/community_detection_sampling/"+filename).c_str(), "w");
+	FILE* fout = fopen((  output_dir).c_str(), "w");
     time_t start_time = clock();
     Community_detection_sampling cd(graph);
     //cd.test_community_sampling(graph,10,90,2,4);
     pair<vector<vid_t>,double> ans=cd.solve(p,K,sub_task);
 	fprintf(fout, "modularity is %.4f\nvertex_id\tcommunity_id\n",ans.second);
+	readNodeMap(input);
 	for(unsigned int i=0;i<ans.first.size();i++)
-        fprintf(fout, "%d\t%d\n",i,ans.first[i]);
+        fprintf(fout, "%llu\t%llu\n",mapToReal[i],ans.first[i]);
     time_t end_time = clock();
     printf( "\tmodularity is %.4f\n\n",ans.second);
 	cout<< "\tRunning time of Community detection: "<<((end_time - start_time + 0.0) / CLOCKS_PER_SEC )<<endl;
@@ -301,7 +319,6 @@ void testCommunityDetectionSampling(MappedGraph *graph,string input,int sub_task
     cd.test_community_sampling(graph,10,90,2,4,sub_task);
 
 }
-
 void runKCoreDecomposition(MappedGraph *graph)
 {
     cout<<"\tRun k-core decomposition algorithm"<<endl<<endl;
@@ -340,7 +357,7 @@ void makeTencentData(string input ,string output)
         if(i % 10000 == 0)
             cerr<<i<<" / "<<m<<endl;
     }
-    graph.Save(output.c_str());
+    graph.Save((output_dir).c_str());
 
 }
 
@@ -527,12 +544,18 @@ void runPropensityScoreMatching(MappedGraph* graph){
     cout<<"Running time of Propensity_Score_Matching algorithm: " << (end_time - start_time + 0.0)/ CLOCKS_PER_SEC <<'s'<<endl;
 }
 
-void runDynamicMinimumSpanningTree(string file_path)
+void runDynamicMinimumSpanningTree(int mode,string file_path)
 {
     cout<<"\tRun dynamic minimum spanning tree algorithm"<<endl<<endl;
     time_t start_time = clock();
     dynamicMinimumSpanningTree cd(file_path);
-    resultMST*ans=cd.solve();
+    resultMST* ans;
+    if (mode==0)
+	ans=cd.solve();
+    if (mode==1)
+	ans=cd.solve_raw(1);
+    if (mode==2)
+	ans=cd.solve_raw(0);
     vid_t n=ans->edge.size(),i;
     cout<<"algorithm done. Writing results at './output/dynamicMST.txt' ..."<<endl;
     ofstream fout("./output/dynamicMST.txt");
@@ -545,30 +568,51 @@ void runDynamicMinimumSpanningTree(string file_path)
         fout<<ans->edge[i].first.first<<' '<<ans->edge[i].first.second<<' '<<ans->edge[i].second<<endl;
     }
     end_time = clock();
-    fout << "Running time of dynamic minimum spanning tree: " << (end_time - start_time + 0.0) / CLOCKS_PER_SEC << endl;
+    fout << "Running time of dynamic minimum spanning tree: " << (end_time - start_time + 0.0) / CLOCKS_PER_SEC << "s"<<endl;
     fout.close();
 }
 
 
-void runSimRank(MappedGraph *graph,string input,int sub_task,vid_t v,int K)
+void runSimRank(MappedGraph *graph,string input,string query,int sub_task,double c,vid_t v,int K)
 {
-    cout<<"\tRun simrank algorithm"<<endl<<endl; 
-    system("mkdir -p output/simrank");
-	int i=input.size();
-	for(;i>=0;i--) if(input[i]=='/') break;
-	string filename=input.substr(i+1);
-	FILE* fout = fopen((  "output/simrank/"+filename).c_str(), "w");
+
+    cout<<"\tRun simrank algorithm"<<endl<<endl;
+	FILE* fout = fopen((  output_dir).c_str(), "w");
     bool is_accurate=(sub_task==0);
     SimRank sr(graph);
     time_t start_time = clock();
-    vector<pair<double, vid_t> > ans=sr.solve(v,is_accurate);
+    readNodeMap(input);
+    vector<vid_t> query_list;
+    vector<vid_t> query_list_real;
+    if(query!="")
+    {
+        ifstream fin(query.c_str());
+        vid_t id;
+        while(1)
+        {
+            if(!(fin>>id)) break;
+            query_list.push_back(mapToSae[id]);
+            query_list_real.push_back(id);
+        }
+    }
+    else
+    {
+        query_list.push_back(mapToSae[v]);
+        query_list_real.push_back(v);
+    }
+
+    vector<vector<pair<double, vid_t> >> ans=sr.solve(query_list,is_accurate,c);
     time_t end_time = clock();
-    fprintf(fout,"%d\n",K);
-    for (int i=0;i<K;i++)
-            fprintf(fout,"%llu\t%f\n",ans[i].second,ans[i].first);
+    for(int j=0;j<query_list.size();j++)
+    {
+        fprintf(fout,"%llu\t%d\n",query_list_real[j],K);
+        for (int i=0;i<K;i++)
+            fprintf(fout,"%llu\t%f\n",mapToReal[ans[j][i].second],ans[j][i].first);
+        fprintf(fout,"\n\n");
+    }
+
     printf( "Running time of simrank algorithm: %.4f\n",(end_time - start_time + 0.0) / CLOCKS_PER_SEC);
 }
-
 
 int main(int argc, char **argv) {
     int vertexNum = 40;
@@ -594,14 +638,16 @@ int main(int argc, char **argv) {
 
     string task = args.task();
     string input= args.input();
+    string query=args.query();
     printf("Input: %s\n", input.c_str());
     // declare output file direction
     if (args.output().length() > 0) {
         output_dir = args.output().c_str();
     }
-    system(("mkdir -p " + output_dir).c_str());
+    //system(("mkdir -p " + output_dir).c_str());
     printf("Output: %s\n", output_dir.c_str());
     double p=args.para_sample_probability();
+    double c = args.para_const();
     int sub_task=args.para_cd_task();
     int K =args.para_im_k();
     vid_t v=args.para_start();
@@ -612,22 +658,31 @@ int main(int argc, char **argv) {
         return 0;
     }
     if (task == "md") {
-        makeData(input, output_dir);
+        makeData(input,output_dir);
         cout << "generate success!" << endl;
         return 0;
     }
 
     if(task=="mt"){
-        makeTencentData(input, output_dir);
+        makeTencentData(input,output_dir);
         cout << "generate success!" << endl;
         return 0;
     }
 
     if (task =="dm"){
-        runDynamicMinimumSpanningTree(args.input());
+        runDynamicMinimumSpanningTree(0,args.input());
 	    return 0;
 	}
 
+    if (task=="dmraw"){
+	runDynamicMinimumSpanningTree(1,args.input());
+	return 0;
+    }
+
+    if (task=="dmrawnw"){
+	runDynamicMinimumSpanningTree(2,args.input());
+	return 0;
+    }
     MappedGraph *graph = MappedGraph::Open(args.input().c_str());
     cout << "===== graph information =====" << endl;
     cout << "#vertices: " << graph -> VertexCount() << endl;
@@ -647,7 +702,7 @@ int main(int argc, char **argv) {
     }
 
     if (task =="sr"){
-        runSimRank(graph,input,sub_task,v,K);
+        runSimRank(graph,input,query,sub_task,c,v,K);
     }
 
     //declare task

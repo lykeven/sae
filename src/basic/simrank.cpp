@@ -40,7 +40,10 @@ vector<vector<double> > simrankwithsum(vector<vector<double> > s,vector<vector<i
                 double simsum=0;
                 for(int l=0;l<indegree[j].size();l++)
                     simsum+=part[i][indegree[j][l]];
-                temp[i][j]=C*simsum/(indegree[i].size()*indegree[j].size());
+                if(indegree[i].size()==0||indegree[j].size()==0)
+                    temp[i][j]=0;
+                else
+                    temp[i][j]=C*simsum/(indegree[i].size()*indegree[j].size());
             }
 
        s=temp;
@@ -48,8 +51,8 @@ vector<vector<double> > simrankwithsum(vector<vector<double> > s,vector<vector<i
     return temp;
 }
 
-vector<pair<double, vid_t> > run_simrank(MappedGraph *graph,vid_t v) {
-    int n=graph->VertexCount();
+vector<vector<pair<double, vid_t> >> run_simrank(MappedGraph *graph,vector<vid_t>query_list ,double c) {
+    int n=graph->VertexCount(),m=query_list.size();
     vector <double> temp(n,0);
     vector<vector<double> > s(n,temp);
     for (int i=0;i<n;i++) s[i][i]=1.0;
@@ -62,10 +65,15 @@ vector<pair<double, vid_t> > run_simrank(MappedGraph *graph,vid_t v) {
         for(auto eiter = viter->InEdges(); eiter->Alive(); eiter->Next())
             indegree[i].push_back(eiter->SourceId());
     }
-    s=simrankwithsum(s,indegree,0.8,10);
-    vector<pair< double,vid_t> > similarity;
-    for(int i=0;i<s.size();i++)
-        similarity.push_back(make_pair(s[v][i],i));
+    s=simrankwithsum(s,indegree,c,10);
+    vector<vector<pair< double,vid_t> >> similarity(m);
+    for(int j=0;j<query_list.size();j++)
+    {
+        for(int i=0;i<s.size();i++)
+            similarity[j].push_back(make_pair(s[query_list[j]][i],i));
+        sort(similarity[j].begin(), similarity[j].end());
+        reverse(similarity[j].begin(), similarity[j].end());
+    }
     return similarity;
 }
 
@@ -143,23 +151,27 @@ vector<pair<double, vid_t> > query_simrank(pair<vector<vector<vid_t>>,vector<vec
     return num;
 }
 
-vector<pair<double, vid_t> > run_simrank_rand(MappedGraph *graph,vid_t v)
+vector<vector<pair<double, vid_t> >> run_simrank_rand(MappedGraph *graph,vector<vid_t> query_list)
 {
-    int T=5,m=graph->EdgeCount()/2;
+    int T=5,m=graph->EdgeCount()/2,k=query_list.size();
     double c=0.5,eita=0.1,ep=sqrt(1.0/m);
     int R=c/(ep*ep)*(log(T*(T-1)/2)/log(2)+1+log(1/eita));
     pair<vector<vector<vid_t>>,vector<vector<vid_t>>>data=generate_random_path(graph,R,T);
-    vector<pair<double, vid_t> > ans=query_simrank(data,v);
-    return ans;
+    vector<vector<pair<double, vid_t> >>similarity(k);
+    for(int j=0;j<k;j++)
+    {
+        similarity[j]=query_simrank(data,query_list[j]);
+        sort(similarity[j].begin(), similarity[j].end());
+        reverse(similarity[j].begin(), similarity[j].end());
+    }
+    return similarity;
 }
 
-vector<pair<double, vid_t> > SimRank::solve(vid_t v,bool is_accurate) {
-    vector<pair< double,vid_t> > similarity;
+vector<vector<pair<double, vid_t> >> SimRank::solve(vector<vid_t> query_list,bool is_accurate,double c) {
+    vector<vector<pair< double,vid_t> >>similarity;
     if(is_accurate)
-        similarity=run_simrank(graph,v);
+        similarity=run_simrank(graph,query_list,c);
     else
-        similarity=run_simrank_rand(graph,v);
-    sort(similarity.begin(), similarity.end());
-    reverse(similarity.begin(), similarity.end());
+        similarity=run_simrank_rand(graph,query_list);
     return similarity;
 }

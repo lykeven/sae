@@ -91,38 +91,36 @@ vector<pair<double, int> > compute_betweenness(MappedGraph *graph,vector< bool> 
 
 pair<vector<vid_t>,int >  split_community(MappedGraph *graph,vector< bool> is_deleted)
 {
-    unsigned int n=graph->VertexCount();
+    unsigned int n=graph->VertexCount(),k=1;
     vector <vid_t> community(n,0);
-    int k=0,s=0;
-    bool is_success=false;
-    while(!is_success)
+    for (unsigned int i=0;i<n;i++)
     {
-        is_success=true;
-        for (unsigned int i=0;i<n;i++)
-            if(community[i]==0) {is_success=false;s=i; k++;break;}
-         if(is_success) break;
-         queue < int >  search_queue;
-         search_queue.push(s);
-        auto viter = graph->Vertices();
-        while(!search_queue.empty())
+        if(community[i]==0)
         {
-                int v=search_queue.front();
-                search_queue.pop();
-                community[v]=k;
-                viter->MoveTo(v);
-                for(auto eiter = viter->OutEdges(); eiter->Alive(); eiter->Next())
-                {
-                    if(is_deleted[eiter->GlobalId()]) continue;
-                    int w = eiter->TargetId();
-                    if(community[w]== 0)
+            queue < int >  search_queue;
+            search_queue.push(i);
+            auto viter = graph->Vertices();
+            while(!search_queue.empty())
+            {
+                    int v=search_queue.front();
+                    search_queue.pop();
+                    community[v]=k;
+                    viter->MoveTo(v);
+                    for(auto eiter = viter->OutEdges(); eiter->Alive(); eiter->Next())
                     {
-                        search_queue.push(w);
-                        community[w]=k;
+                        if(is_deleted[eiter->GlobalId()]) continue;
+                        int w = eiter->TargetId();
+                        if(community[w]== 0)
+                        {
+                            search_queue.push(w);
+                            community[w]=k;
+                        }
                     }
-                }
+            }
+        k++;
         }
     }
-    return make_pair(community,k);
+    return make_pair(community,k-1);
 }
 
 
@@ -175,8 +173,8 @@ pair<vector<vid_t>,double>   Community_detection::run_Girvan_NewMan(MappedGraph 
                 is_deleted[second]=true;
             }
 
-        if(edge_betweenness[0].first==0)  break;
         modularity[j]=modularity[j-1];
+        if(edge_betweenness[0].first==0)  break;
         pair<vector<vid_t>,int > split_com=split_community(graph,is_deleted);
         community=split_com.first;
         k=split_com.second;
@@ -188,7 +186,6 @@ pair<vector<vid_t>,double>   Community_detection::run_Girvan_NewMan(MappedGraph 
 
 pair<vector<vid_t>,double>   Community_detection::run_label_propagation(MappedGraph *graph)
 {
-        cout<<"\tRun community detection algorithm with lable propagation"<<endl;
         srand(time(NULL));
         unsigned int  n=graph->VertexCount();
         vector<vector<vid_t>> neighbor(n);
@@ -263,7 +260,6 @@ pair<vector<vid_t>,double>   Community_detection::run_label_propagation(MappedGr
         }
             return make_pair(max_community,max_modularity);
 }
-
 
 vector<int> BFS(MappedGraph *graph,int s,int threshold)
 {
@@ -372,6 +368,7 @@ vector<vid_t> allocate_vertex(MappedGraph *graph,vector<vid_t> com_core_set)
         }
         for(int j=0;j<n;j++)
         {
+            for(int i=0;i<dis[j].size();i++) if(dis[j][i]==-1) dis[j][i]=1000;
             int min_index=distance(dis[j].begin(), min_element(dis[j].begin(), dis[j].end()));
             communityChange[j]=min_index+1;
         }
@@ -391,7 +388,7 @@ pair<vector<vid_t>,double> Community_detection::run_k_community_core(MappedGraph
         if(d>D)
             D=d;
     }
-    cout<<"\tD :"<<D<<endl<<endl;
+    //cout<<"\tD :"<<D<<endl<<endl;
     int threshold_length=D/K;
     vector<double>rate={0.75,0.9};
     vector<int>length={2,3,4};
@@ -400,12 +397,11 @@ pair<vector<vid_t>,double> Community_detection::run_k_community_core(MappedGraph
     for(int i=0;i<rate.size();i++)
     for(int j=0;j<length.size();j++)
     {
-        cout<<"\tlength: "<<length[j]<<"\trate: "<<rate[i]<<endl;
         vector<vid_t> com_core_set=get_community_core(graph,K,length[j],rate[i]);
         community= allocate_vertex(graph, com_core_set);
         modularity=compute_modularity(graph,community,com_core_set.size());
-        cout<<"\tcommunity core number"<<com_core_set.size()<<endl;
-        cout<<"\tmodularity is "<<modularity<<endl<<endl;
+        //cout<<"\tlength: "<<length[j]<<"\trate: "<<rate[i]<<endl;
+        //cout<<"\tcommunity core number"<<com_core_set.size()<<"\tmodularity is "<<modularity<<endl;
         if(modularity>best_modularity){
             best_community=community;
             best_modularity=modularity;
@@ -563,57 +559,6 @@ pair<vector<vid_t>,double> Community_detection::run_louvain_method(MappedGraph *
     return make_pair(community,best_q);
 }
 
-pair<vector<vid_t>,double> Community_detection::run_hierarchical_clustering(MappedGraph *graph,int K)
-{
-    int n=graph->VertexCount(),num=n;
-    vector<int> temp(n,-1);
-    vector<vid_t> community(n,0);
-    vector<vector<int> >dis(n,temp);
-    vector<vector<vid_t> >region(n);
-    for(int i=0;i<n;i++)
-    {
-        dis[i]=BFS(graph,i,1000);
-        region[i].push_back(i);
-    }
-    while(num>K)
-    {
-        int min_dis=10000,min_i=0,min_j=1;
-        for(int i=0;i<n;i++)
-            for(int j=0;j<n;j++)
-                if(region[i].size()!=0&&region[j].size()!=0&&i!=j)
-                {
-                    double dis_total=0;
-                    for(int k=0;k<region[i].size();k++)
-                        for(int l=0;l<region[j].size();l++)
-                            dis_total+=dis[region[i][k]][region[j][l]];
-                    double dis_average=dis_total/(region[i].size()*region[j].size());
-                    if(min_dis>dis_average)
-                    {
-                        min_dis=dis_average;
-                        min_i=i;min_j=j;
-                    }
-                }
-        for(int i=0;i<region[min_i].size();i++)
-            region[min_j].push_back(region[min_i][i]);
-        region[min_i].clear();
-        num--;
-    }
-    int k=1;
-    map<vid_t,vid_t> map_seq;
-    for(int i=0;i<n;i++)
-    {
-        if(region[i].size()>0){
-            for(int j=0;j<region[i].size();j++)
-                map_seq[region[i][j]]=k;
-            k++;
-        }
-    }
-    for(int i=0;i<n;i++)
-        community[i]=map_seq[i];
-    double modularity=compute_modularity(graph,community,K);
-    return make_pair(community,modularity);
-}
-
 pair<vector<vid_t>,double> Community_detection::solve(int K,int sub_task)
 {
     pair<vector<vid_t>,double> community;
@@ -622,7 +567,6 @@ pair<vector<vid_t>,double> Community_detection::solve(int K,int sub_task)
     case 2:community=run_label_propagation(graph);break;
     case 3:community=run_louvain_method(graph);break;
     case 4:community=run_k_community_core(graph,K);break;
-    case 5:community=run_hierarchical_clustering(graph,K);break;
     default:community=run_Girvan_NewMan(graph,K);break;
     }
     return community;

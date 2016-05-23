@@ -8,7 +8,7 @@
 #include <ctime>
 #include <cstdlib>
 #include "dynamicMinimumSpanningTree.h"
-
+#include <string>
 #define INFI 2147483647
 
 using namespace std;
@@ -210,8 +210,7 @@ int dynamicMinimumSpanningTree::Insert(lctNode *x , lctNode *y , double weight)
         ans.push_back(make_pair(make_pair(-1,-1),-1));
     }
     for (auto v=graph->Vertices();v->Alive();v->Next())
-    {
-    	x=v->GlobalId();++x;
+    {    	x=v->GlobalId();++x;
         for(auto iter=v->OutEdges();iter->Alive();iter->Next())
         {
         	y=iter->TargetId();++y;
@@ -230,6 +229,7 @@ int dynamicMinimumSpanningTree::Insert(lctNode *x , lctNode *y , double weight)
 
 resultMST* dynamicMinimumSpanningTree::solve()
 {
+    cout<<"running dynamicMST..."<<endl;
     srand(time(0));
     freopen((file_path).c_str(),"r",stdin);
     vid_t n,m;
@@ -263,3 +263,77 @@ resultMST* dynamicMinimumSpanningTree::solve()
     ans->mstValue=mstValue;
     return ans;
 }
+
+resultMST* dynamicMinimumSpanningTree::_solve()
+{
+    cout<<"running dynamicMST..."<<endl;
+    resultMST*ans=new resultMST;
+    tot=0;ans->n=n;ans->m=m;
+    tree.clear();edges.clear();
+    null=new lctNode(0,-1,0,0);
+    null->fa=null->ls=null->rs=null->node1=null->node2=null;
+    edges.push_back(null);
+    vid_t i,x,y;
+    double weight;
+    mstValue = 0;
+    tree.push_back(null);
+    for (i = 1; i <= n; ++ i)
+    {
+        tree.push_back(new lctNode(0,-1,null,null));
+        edges.push_back(new lctNode(0,-1,null,null));
+        ans->edge.push_back(make_pair(make_pair(-1,-1),-1));
+    }
+    for (i=1;i<=m;++i)
+    {
+	x=data_edge[i].first.first;
+	y=data_edge[i].first.second;
+	weight=data_edge[i].second;
+        ++x;++y;
+        if (i%1000000==0) cout<<i<<endl;
+        int temp=Insert(tree[x],tree[y],weight);
+        if (temp>0)
+                ans->edge[temp]=make_pair(make_pair(g[x-1],g[y-1]),weight);
+    }
+    ans->mstValue=mstValue;
+    return ans;
+}
+
+
+resultMST* dynamicMinimumSpanningTree::solve_raw(int mode)
+{
+	p.clear();g.clear();data_edge.clear();
+	freopen((file_path).c_str(),"r",stdin);
+	long long id,id2;
+	int p1,p2;
+	double weight;
+	n=m=0;
+	cout<<"generate the data..."<<endl;
+	while (true)
+	{
+		id=id2=-1;
+		scanf("%lld%lld",&id,&id2);
+		if (mode==0)
+			weight=1.0*rand()/RAND_MAX;
+		if (mode==1)
+			scanf("%lf",&weight);
+		if (id==-1) break;
+		auto it1=p.find(id),it2=p.find(id2);
+		if (it1==p.end())
+		{
+			g.push_back(id);++n;p1=n-1;
+			p.insert(make_pair(id,n-1));
+		}else
+			p1=it1->second;
+		if (it2==p.end())
+                {
+                        g.push_back(id2);++n;p2=n-1;
+                        p.insert(make_pair(id2,n-1));
+                }else
+                        p2=it2->second;
+		data_edge.push_back(make_pair(make_pair(p1,p2),weight));++m;
+		if (m%1000000==0) cout<<m<<endl;
+	}
+	cout<<"total vertexs:"<<n<<" total edges:"<<m<<endl;
+	return _solve();
+}
+

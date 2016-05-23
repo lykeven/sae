@@ -25,87 +25,16 @@ MappedGraph * select_sub_graph(MappedGraph *graph,int& num,map<vid_t,vid_t>& map
     GraphBuilder<int> sub_graph_builder;
     map<vid_t,vid_t> is_part;
     int n=graph->VertexCount(),m=graph->EdgeCount();
-    vector<int > indegree(n),is_exist(n,0);
-    vector<pair<int, int> > indegree_sort;
-    vector<vector<vid_t>> node_target(n);
     auto viter = graph->Vertices();
-    int T=num/K;
-    for (int i=0;i<n;i++)
+
+    for(int i=0;i<num;i++)
     {
-        viter->MoveTo(i);
-        vid_t num=viter->OutEdgeCount();
-        indegree[i]=num;
-         indegree_sort.push_back(make_pair(num,i));
-        vector<vid_t> temp(num);
-        node_target[i]=temp;
-        int k=0;
-        for(auto eiter = viter->OutEdges(); eiter->Alive(); eiter->Next())
-            node_target[i][k++]=eiter->TargetId();
+
+        vid_t sample_v=i;
+        map_to[i]=sample_v;
+        is_part[sample_v]=i;
+        sub_graph_builder.AddVertex(i,0);
     }
-    sort(indegree_sort.begin(), indegree_sort.end());
-    reverse(indegree_sort.begin(), indegree_sort.end());
-    set<vid_t> kernel_set;
-    set<vid_t>::reverse_iterator rit;
-     int k=0;
-    for(int i=0;i<K;i++)
-    {
-        set<vid_t> kernel_new;
-        vid_t rand_v=indegree_sort[k].second;
-        while(is_exist[rand_v])
-        {
-            rand_v=indegree_sort[++k].second;
-            if(k>=n) break;
-        }
-        if(k>=n) break;
-        kernel_set.insert(rand_v);
-        kernel_new.insert(rand_v);
-        is_exist[rand_v]=i+1;
-        for(int j=1;j<T;j++)
-        {
-            int max_con=0,max_indegree=0,max_index=0;
-            for (rit = kernel_new.rbegin(); rit != kernel_new.rend(); rit++)
-            {
-                for(int c=0;c<node_target[*rit].size();c++)
-                {
-                    int neighbor_v=node_target[*rit][c],con=0;
-                    if(is_exist[neighbor_v]) continue;
-                    for(int b=0;b<node_target[neighbor_v].size();b++)
-                        if(is_exist[node_target[neighbor_v][b]]) con++;
-                    if(con>=max_con)
-                    {
-                        max_con=con;
-                        if(max_indegree<indegree[neighbor_v])
-                        {
-                            max_indegree=indegree[neighbor_v];
-                            max_index=neighbor_v;
-                        }
-                    }
-                }
-            }
-            is_exist[max_index]=i+1;
-            kernel_set.insert(max_index);
-            kernel_new.insert(max_index);
-        }
-    }
-    num=0;
-    for(int i=0;i<n;i++)
-    {
-        if(is_exist[i])
-        {
-            vid_t sample_v=num;
-            is_part[i]=sample_v;
-            map_to[sample_v]=i;
-            sub_graph_builder.AddVertex(num++,0);
-        }
-    }
-//    for(int i=0;i<num;i++)
-//    {
-//
-//        vid_t sample_v=indegree[i].second;
-//        map_to[i]=sample_v;
-//        is_part[sample_v]=i;
-//        sub_graph_builder.AddVertex(i,0);
-//    }
     for(int i=0;i<num;i++)
     {
         vid_t origin_v=map_to[i];
@@ -474,6 +403,7 @@ pair<vector<vid_t>,double>  Community_detection_sampling::solve(double p,int K,i
     double modularity=cd.compute_modularity(graph,final_community,k);
     cout << endl<<endl<<"\tafter assign vertex " <<"\tmodularity is "<<modularity<<endl;
     return make_pair(final_community,modularity);
+
 //     ans=fixed_community(graph,final_community,modularity,k);
 //     k=*max_element(ans.first.begin(),ans.first.end());
 //     cout<<endl<<endl<<"\tafter fixed community " << "\tmodularity is "<<ans.second<<"\tK is "<<k<<endl;

@@ -53,7 +53,11 @@ sr: run SimRank ;
 
 [-r INT:run]: choose a algorithm for SimRank;
 
-[-s INT:start]: the querying node;
+[-c FLOAT:constant]: weaken factor for SimRank, which between 0~1,default value is 0.8;
+
+[-s INT:start]: the querying node, which should be exits in the dataset;
+
+[-q STRING:query file]: the querying file, which contain query nodes.Each line has a node number;
 
 [-k INT:K]: the number of Top K;
 
@@ -62,67 +66,90 @@ psm: propensity score matching;
 ec: expert classfication.
 
 #### Example for make data
-The input file is placed at ./data/facebook
+The input file is placed at ./resource/facebook,and output file will be placed at ./data/facebook
 
 To transform data to SAE graph
 
 ./bin/sae –i ./resource/facebook -o ./data/facebook -t md
 
 #### Example for make tencent data
-The input file is placed at /tmp/tencent8.graph
+The input file is placed at /tmp/tencent8.graph,and output file will be placed at ./data/tencent8
 
 To transform data to SAE graph
 
-./bin/sae –i ./tmp/tencent8.graph -o ./data/tencent_weibo -t mt
+./bin/sae –i /tmp/tencent8.graph -o ./data/tencent8 -t mt
 
 #### Example for influence maximization
 The input file is placed at ./data/facebook
 
 To run influence maximization with constant edge weight as 0.5 and number of seed users as 10:
 
-./bin/sae –i ./data/facebook –t im –k 10 –w const –c 0.5
+./bin/sae -i ./data/facebook -t im -k 10 -w const -c 0.5
 
 #### Example for dynamicMST
 The input file is placed at ./data.txt
 
+case 1:
 data.txt contains vertex number n, edge number m and all the edges of the graph:
 n m
 x1 y1 w1
 x2 y2 w2
 ...
 
-./bin/sae –i ./data.txt –t dm
+./bin/sae -i ./data.txt -t dm
+
+case 2:
+data.txt contains only all the edges of the graph:
+x1 y1 w1
+x2 y2 w2
+...
+
+./bin/sae -i ./data.txt -t dmraw
+
+case 3:
+data.txt contains the edges of the graph, but without weight. Program will give a random weight each edge:
+x1 y1
+x2 y2
+...
+
+./bin/sae -i ./data.txt -t dmrawnw
+
+
+
 
 ##### Example for Community Detection
-The input file is placed at ./data/facebook
+The input file is placed at ./data/facebook, and output file will be placed at ./output/facebook
 
+To run community detection with community number as 5 and aglorithm 4:
 
-To run community detection with community number as 5 and aglorithm 2:
+./bin/sae -i ./data/facebook -o ./output/facebook -t cd -k 5 -r 4
 
-./bin/sae -i ./data/facebook -t cd -k 5 -r 2
+-r 1 means using Girvan-Newman aglorithm , which runs pretty slowly. This algorithm is not recommended when the network has more than 1000 nodes.
 
--r 1 means using Girvan-Newman aglorithm
+-r 2 means using label propagation aglorithm, and k should not be appointed
 
--r 2 means using label propagation aglorithm
+-r 3 means using louvain method, and k should not be appointed
 
--r 3 means using louvain method
+-r 4 means using k community core, which don't have extra parameters except k
 
--r 4 means using k community core 
+To run community detection sampling algorithm based on Girvan-Newman, with community number as 5 and sample probability as 0.2:
 
-To run community detection sampling method with community number as 5 and sample probability as 0.01:
+./bin/sae -i ./data/facebook -o ./output/facebook -t cs -k 5 -p 0.2
 
-./bin/sae -i ./data/facebook -t cs -k 5 -p 0.01
+#### Example for SimRank
+The input file is placed at ./data/facebook, and output file will be placed at ./output/facebook
 
-##### Example for SimRank
-The input file is placed at ./data/facebook
+To query node 1's Top 50 similar nodes with using Partial Sums Memoization algorithm and weaken factor is 0.8 
 
-To run simrank precisely with querying node 1's Top 50 similar nodes
+./bin/sae -i ./data/facebook -o ./output/facebook -t sr -r 0 -c 0.8 -s 1 -k 50
 
-./bin/sae -i ./data/facebook -t sr -r 0 -v 1 -k 50
+To run query node 2's Top 20 similar nodes with using Random Walk algorithm 
 
-To run simrank approximately with querying node 2's Top 20 similar nodes
+./bin/sae -i ./data/facebook -o ./output/facebook -t sr -r 1 -s 2 -k 20
 
-./bin/sae -i ./data/facebook -t sr -r 1 -v 2 -k 20
+To query Top 20 similar nodes of multiple nodes, which user defined in query file "./output/query.txt"
+
+./bin/sae -i ./data/facebook -o ./output/facebook -t sr -r 1 -q  ./output/query.txt -k 20
 
 ##### Example for Propensity Score Matching
 ./bin/sae -i ./data/expert -t psm
