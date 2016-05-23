@@ -70,7 +70,6 @@ namespace statistic{
             }
         }
         information_retrieval(relevant1, relevant2, retrieved, non_retrieved);   
-        cout<< "//-------------------------" <<endl;
     }
 
     std::vector<double> ada_boosting(std::vector< std::vector<double> >& data, std::vector< std::vector<double> >& learner, const std::vector<bool> gound_truth)
@@ -106,6 +105,7 @@ namespace statistic{
         cout << "recall: "<< (recall = relevant1 * 1.0 / (relevant1 + relevant2))<<endl;;
         cout << "fall-out: " << (retrieved - relevant1)* 1.0 / (retrieved + non_retrieved - relevant1 - relevant2)<<endl;
         cout << "F-score: " << 2.0 * precision * recall / (precision + recall)<<endl;
+        cout<< "//-------------------------" <<endl;
 
     }
 }

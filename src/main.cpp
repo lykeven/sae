@@ -43,7 +43,7 @@ DEF_ARGUMENT_CLASS(
     double,            para_sample_probability, 0.01,            OPTIONAL,   OPT_SLH(-p, --probability, "sample probability for aglorithm")
 );
 
-string output_dir;
+string output_dir, output_name;
 
 void makeFakeData(int numVertex=10, double p = 0.1, int properties_num = 3) {
     //int numEdge = rand() % (numVertex * numVertex / 3) + numVertex;
@@ -425,6 +425,7 @@ void runExpertClassification(MappedGraph* graph)
     cout << "Please input the path of ground_truth file: "<<endl;
     string ground_truth_file;
     cin >> ground_truth_file;
+    time_t start_time = clock();
     ifstream fin(ground_truth_file.c_str());
     int t;
     vector<int> experts;
@@ -505,20 +506,25 @@ void runExpertClassification(MappedGraph* graph)
         if(result[i]) retrieved++; else non_retrieved++;
     }
     statistic::information_retrieval(relevant1, relevant2, retrieved, non_retrieved);
-
+    time_t end_time = clock();
+    cout<<"Running time of Expert Classification algorithm: " << (end_time - start_time + 0.0)/ CLOCKS_PER_SEC <<'s'<<endl;
 }
 
 void runPropensityScoreMatching(MappedGraph* graph){
     Propensity_Score_Matching  psm(graph);
+    output_name = "Propensity Score Matching.txt";
+    ofstream fout((output_dir + output_name).c_str());
     cout << "Please input the determine_coefficient: "<<endl;
     int determine_coefficient = 0;
     cin >> determine_coefficient;
+    time_t start_time = clock();
     vector<int> nodes = psm.solve(determine_coefficient);
+    time_t end_time = clock();
     for(int i = 0 ;i < nodes.size(); i += 2)
     {
-        cout << nodes[i] << "---" << nodes[i + 1] <<endl;
+        fout << nodes[i] << "---" << nodes[i + 1] <<endl;
     }
-
+    cout<<"Running time of Propensity_Score_Matching algorithm: " << (end_time - start_time + 0.0)/ CLOCKS_PER_SEC <<'s'<<endl;
 }
 
 void runDynamicMinimumSpanningTree(string file_path)
@@ -546,7 +552,7 @@ void runDynamicMinimumSpanningTree(string file_path)
 
 void runSimRank(MappedGraph *graph,string input,int sub_task,vid_t v,int K)
 {
-    cout<<"\tRun simrank algorithm"<<endl<<endl;
+    cout<<"\tRun simrank algorithm"<<endl<<endl; 
     system("mkdir -p output/simrank");
 	int i=input.size();
 	for(;i>=0;i--) if(input[i]=='/') break;
@@ -685,8 +691,11 @@ int main(int argc, char **argv) {
 	if (task == "sp") {
         runShortestPath(graph,args.para_start(),args.para_end(),true);
     }
-    if (task == "social")
-        social_main(graph);
+    if (task == "social"){
+        output_name = "social_analysis.txt";
+        ofstream fout((output_dir + output_name).c_str());
+        social_main(graph, fout);
+    }
     if (task == "ec"){
         runExpertClassification(graph);
     }

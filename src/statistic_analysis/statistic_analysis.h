@@ -2,6 +2,7 @@
 #include <vector>
 #include <cmath>
 #include <cassert>
+#include <iostream>
 namespace statistic{
     std::vector<double> logistic_regression
         (const std::vector< std::vector<double> >& data, const std::vector<bool> is_treated);
