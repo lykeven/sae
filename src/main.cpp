@@ -154,8 +154,13 @@ int makeData(string input,string output) {
         graph.AddEdge(b, a, 0);
     }
     cout << graph.VertexCount() << " " << graph.EdgeCount() << endl;
-    graph.Save((output).c_str());
-    FILE* fout = fopen(( output+"_map").c_str(), "w");
+	int i=input.size()-1;
+    while(input[i]!='/') i--;
+    int j=input.size()-1;
+    while(input[j]!='.') j--;
+    string filename=input.substr(i,j-i);
+    graph.Save((output+filename).c_str());
+    FILE* fout = fopen(( output+filename+"_map").c_str(), "w");
     map<vid_t, vid_t>::iterator it;
     for(it=mapToReal.begin();it!=mapToReal.end();++it)
     {
@@ -286,7 +291,7 @@ void runCommunityDetection(MappedGraph *graph,string input,int sub_task,int K)
     printf( "\tmodularity is %.4f\n",ans.second);
     printf( "\tRunning time of Community detection: %.4f\n",(end_time - start_time + 0.0) / CLOCKS_PER_SEC );
 
-	FILE* fout = fopen((  output_dir).c_str(), "w");
+	FILE* fout = fopen((  output_dir+"/community_detection").c_str(), "w");
 	fprintf(fout, "modularity is %.4f\nvertex_id\tcommunity_id\n",ans.second);
 	readNodeMap(input);
 	for(unsigned int i=0;i<ans.first.size();i++)
@@ -297,7 +302,7 @@ void runCommunityDetection(MappedGraph *graph,string input,int sub_task,int K)
 void runCommunityDetectionSampling(MappedGraph *graph,string input,int sub_task,double p,int K)
 {
     cout<<"\tRun community detection sampling algorithm"<<endl<<endl;
-	FILE* fout = fopen((  output_dir).c_str(), "w");
+	FILE* fout = fopen((  output_dir+"/community_detection_sampling").c_str(), "w");
     time_t start_time = clock();
     Community_detection_sampling cd(graph);
     //cd.test_community_sampling(graph,10,90,2,4);
@@ -357,7 +362,7 @@ void makeTencentData(string input ,string output)
         if(i % 10000 == 0)
             cerr<<i<<" / "<<m<<endl;
     }
-    graph.Save((output_dir).c_str());
+    graph.Save((output_dir+"/tencent8").c_str());
 
 }
 
@@ -577,7 +582,7 @@ void runSimRank(MappedGraph *graph,string input,string query,int sub_task,double
 {
 
     cout<<"\tRun simrank algorithm"<<endl<<endl;
-	FILE* fout = fopen((  output_dir).c_str(), "w");
+	FILE* fout = fopen((  output_dir+"/simrank").c_str(), "w");
     bool is_accurate=(sub_task==0);
     SimRank sr(graph);
     time_t start_time = clock();
@@ -644,7 +649,7 @@ int main(int argc, char **argv) {
     if (args.output().length() > 0) {
         output_dir = args.output().c_str();
     }
-    //system(("mkdir -p " + output_dir).c_str());
+    system(("mkdir -p " + output_dir).c_str());
     printf("Output: %s\n", output_dir.c_str());
     double p=args.para_sample_probability();
     double c = args.para_const();

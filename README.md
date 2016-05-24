@@ -66,18 +66,18 @@ psm: propensity score matching;
 ec: expert classfication.
 
 #### Example for make data
-The input file is placed at ./resource/facebook,and output file will be placed at ./data/facebook
+The input file is placed at ./resource/facebook.txt, and output file will be placed at ./data/facebook
 
 To transform data to SAE graph
 
-./bin/sae –i ./resource/facebook -o ./data/facebook -t md
+./bin/sae -i ./resource/facebook.txt -o ./data -t md
 
 #### Example for make tencent data
 The input file is placed at /tmp/tencent8.graph,and output file will be placed at ./data/tencent8
 
 To transform data to SAE graph
 
-./bin/sae –i /tmp/tencent8.graph -o ./data/tencent8 -t mt
+./bin/sae –i /tmp/tencent8.graph -o ./data -t mt
 
 #### Example for influence maximization
 The input file is placed at ./data/facebook
@@ -118,11 +118,11 @@ x2 y2
 
 
 ##### Example for Community Detection
-The input file is placed at ./data/facebook, and output file will be placed at ./output/facebook
+The input file is placed at ./data/facebook, and output file will be placed at ./output/community_detection or ./output/community_detection_sampling
 
 To run community detection with community number as 5 and aglorithm 4:
 
-./bin/sae -i ./data/facebook -o ./output/facebook -t cd -k 5 -r 4
+./bin/sae -i ./data/facebook -o ./output -t cd -k 5 -r 4
 
 -r 1 means using Girvan-Newman aglorithm , which runs pretty slowly. This algorithm is not recommended when the network has more than 1000 nodes.
 
@@ -134,22 +134,22 @@ To run community detection with community number as 5 and aglorithm 4:
 
 To run community detection sampling algorithm based on Girvan-Newman, with community number as 5 and sample probability as 0.1:
 
-./bin/sae -i ./data/facebook -o ./output/facebook -t cs -k 5 -p 0.1
+./bin/sae -i ./data/facebook -o ./output -t cs -k 5 -p 0.1
 
 #### Example for SimRank
-The input file is placed at ./data/facebook, and output file will be placed at ./output/facebook
+The input file is placed at ./data/facebook, and output file will be placed at ./output/simrank
 
 To query node 1's Top 50 similar nodes with using Partial Sums Memoization algorithm and weaken factor is 0.8 
 
-./bin/sae -i ./data/facebook -o ./output/facebook -t sr -r 0 -c 0.8 -s 1 -k 50
+./bin/sae -i ./data/facebook -o ./output -t sr -r 0 -c 0.8 -s 1 -k 50
 
 To run query node 2's Top 20 similar nodes with using Random Walk algorithm 
 
-./bin/sae -i ./data/facebook -o ./output/facebook -t sr -r 1 -s 2 -k 20
+./bin/sae -i ./data/facebook -o ./output -t sr -r 1 -s 2 -k 20
 
 To query Top 20 similar nodes of multiple nodes, which user defined in query file "./output/query.txt"
 
-./bin/sae -i ./data/facebook -o ./output/facebook -t sr -r 1 -q  ./output/query.txt -k 20
+./bin/sae -i ./data/facebook -o ./output -t sr -r 1 -q  ./output/query.txt -k 20
 
 ##### Example for Propensity Score Matching
 ./bin/sae -i ./data/expert -t psm
