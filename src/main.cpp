@@ -154,13 +154,8 @@ int makeData(string input,string output) {
         graph.AddEdge(b, a, 0);
     }
     cout << graph.VertexCount() << " " << graph.EdgeCount() << endl;
-	int i=input.size()-1;
-    while(input[i]!='/') i--;
-    int j=input.size()-1;
-    while(input[j]!='.') j--;
-    string filename=input.substr(i,j-i);
-    graph.Save((output+filename).c_str());
-    FILE* fout = fopen(( output+filename+"_map").c_str(), "w");
+    graph.Save((output).c_str());
+    FILE* fout = fopen(( output+"_map").c_str(), "w");
     map<vid_t, vid_t>::iterator it;
     for(it=mapToReal.begin();it!=mapToReal.end();++it)
     {
@@ -362,7 +357,7 @@ void makeTencentData(string input ,string output)
         if(i % 10000 == 0)
             cerr<<i<<" / "<<m<<endl;
     }
-    graph.Save((output_dir+"/tencent8").c_str());
+    graph.Save((output_dir).c_str());
 
 }
 
