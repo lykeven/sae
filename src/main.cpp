@@ -644,7 +644,8 @@ int main(int argc, char **argv) {
     if (args.output().length() > 0) {
         output_dir = args.output().c_str();
     }
-    system(("mkdir -p " + output_dir).c_str());
+	if(!(task=="md"||task=="mt"))
+		system(("mkdir -p " + output_dir).c_str());
     printf("Output: %s\n", output_dir.c_str());
     double p=args.para_sample_probability();
     double c = args.para_const();
