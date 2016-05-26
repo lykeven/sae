@@ -115,6 +115,12 @@ x2 y2
 ./bin/sae -i ./data.txt -t dmrawnw
 
 
+The output file is placed at ./output/dynamicMST.txt
+first line is the algorithm executed time
+then contains nodes number, edges number and total edge value of the MST
+after all the edges' infomation of MST, the last line is the total time of this execution period including output time
+
+
 
 
 ##### Example for Community Detection
