@@ -341,6 +341,7 @@ void makeTencentData(string input ,string output)
     fin>>n>>m;
     for(int i = 0;i<n;i++)
     {
+		mapToReal.insert(make_pair(i, i));
         graph.AddVertex(i,0);
         if(i % 1000 == 0) cerr<<i<<" / "<<n<<endl;
     }
@@ -358,7 +359,13 @@ void makeTencentData(string input ,string output)
             cerr<<i<<" / "<<m<<endl;
     }
     graph.Save((output_dir).c_str());
-
+	FILE* fout = fopen(( output+"_map").c_str(), "w");
+    map<vid_t, vid_t>::iterator it;
+    for(it=mapToReal.begin();it!=mapToReal.end();++it)
+    {
+        fprintf(fout,"%llu\t%llu\n",it->first,it->second);
+    }
+    fclose(fout);
 }
 
 void makeTencentDataForStreaming()
