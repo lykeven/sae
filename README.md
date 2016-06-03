@@ -140,7 +140,15 @@ To run community detection with community number as 5 and aglorithm 4:
 
 To run community detection sampling algorithm based on Girvan-Newman, with community number as 5 and sample probability as 0.1:
 
-./bin/sae -i ./data/facebook -o ./output -t cs -k 5 -p 0.1
+./bin/sae -i ./data/facebook -o ./output -t cs -r 1 -k 5 -p 0.1
+
+-r 1 means speeding up Girvan-Newman aglorithm
+
+-r 2 means speeding up label propagation aglorithm, and k should not be appointed
+
+-r 3 means speeding up louvain method, and k should not be appointed
+
+-r 4 means speeding up k community core aglorithm
 
 #### Example for SimRank
 The input file is placed at ./data/facebook, and output file will be placed at ./output/simrank
