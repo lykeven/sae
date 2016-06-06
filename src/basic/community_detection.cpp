@@ -8,6 +8,7 @@
 #include <set>
 #include <cstdlib>
 #include <ctime>
+#include <cmath>
 
 using namespace std;
 using namespace sae::io;
@@ -149,7 +150,7 @@ double  Community_detection::compute_modularity(MappedGraph *graph, vector<eid_t
         ai=ai_temp/m;
         ans+=eii-ai*ai;
     }
-    return ans;
+    return fabs(ans);
 }
 
 
@@ -186,7 +187,7 @@ pair<vector<vid_t>,double>   Community_detection::run_Girvan_NewMan(MappedGraph 
 
 pair<vector<vid_t>,double>   Community_detection::run_label_propagation(MappedGraph *graph)
 {
-        srand(time(NULL));
+        srand(1);
         unsigned int  n=graph->VertexCount();
         vector<vector<vid_t>> neighbor(n);
         vector<vid_t> C(n);
