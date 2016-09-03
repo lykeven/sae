@@ -22,7 +22,13 @@ namespace sae {
             std::stringstream stream;
             OSerializeStream encoder(&stream);
             encoder << t;
-            
+
+            return stream.str();
+        }
+        template <typename T>
+        std::string cvt_to_string(const T& t) {
+            std::stringstream stream;
+            stream << t;
             return stream.str();
         }
     }

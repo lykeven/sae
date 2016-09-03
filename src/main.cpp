@@ -8,11 +8,17 @@
 #include "basic/pagerank.h"
 #include "basic/degree_distribution.h"
 #include "basic/community_detection.h"
+#include "basic/shortest_path.h"
+#include "basic/propensity_score_matching.h"
+#include "basic/k_core_decomposition.h"
 #include "storage/graph_builder.h"
 #include "storage/mgraph.h"
 #include "report/table_generator.h"
 #include "influence/influence_maximization.h"
-#include "basic/shortest_path.h"
+#include "social_analysis/social_main.h"
+#include "streaming/dynamicMinimumSpanningTree.h"
+#include "network_embedding/deepwalk.h"
+#include "network_embedding/node2vec.h"
 #include <iostream>
 #include <fstream>
 #include <cstdio>
@@ -20,11 +26,8 @@
 #include <map>
 #include <set>
 #include <cstdlib>
-#include "social_analysis/social_main.h"
-#include "basic/propensity_score_matching.h"
-#include "basic/k_core_decomposition.h"
-#include "streaming/dynamicMinimumSpanningTree.h"
 #include <cstring>
+
 
 using namespace std;
 using namespace sae::io;
@@ -294,14 +297,14 @@ void runCommunityDetection(MappedGraph *graph,string input,int sub_task,int K)
 	fclose(fout);
 }
 
-void runCommunityDetectionSampling(MappedGraph *graph,string input,int sub_task,double p,int K)
+void runCommunityDetectionSampling(MappedGraph *graph,string input,int sub_task,double p,int K,int sm,int e)
 {
     cout<<"\tRun community detection sampling algorithm"<<endl<<endl;
 	FILE* fout = fopen((  output_dir+"/community_detection_sampling").c_str(), "w");
     time_t start_time = clock();
     Community_detection_sampling cd(graph);
     //cd.test_community_sampling(graph,10,90,2,4);
-    pair<vector<vid_t>,double> ans=cd.solve(p,K,sub_task);
+    pair<vector<vid_t>,double> ans=cd.solve(p,K,sub_task,sm,e);
 	fprintf(fout, "modularity is %.4f\nvertex_id\tcommunity_id\n",ans.second);
 	readNodeMap(input);
 	for(unsigned int i=0;i<ans.first.size();i++)
@@ -312,11 +315,11 @@ void runCommunityDetectionSampling(MappedGraph *graph,string input,int sub_task,
 	fclose(fout);
 }
 
-void testCommunityDetectionSampling(MappedGraph *graph,string input,int sub_task)
+void testCommunityDetectionSampling(MappedGraph *graph,string input,int sub_task,int sm,int e)
 {
     cout<<"\tTestcommunity detection sampling algorithm"<<endl<<endl;
     Community_detection_sampling cd(graph);
-    cd.test_community_sampling(graph,10,90,2,4,sub_task);
+    cd.test_community_sampling(graph,sub_task,sm,e);
 
 }
 void runKCoreDecomposition(MappedGraph *graph)
@@ -621,6 +624,26 @@ void runSimRank(MappedGraph *graph,string input,string query,int sub_task,double
     printf( "Running time of simrank algorithm: %.4f\n",(end_time - start_time + 0.0) / CLOCKS_PER_SEC);
 }
 
+void runDeepWalk(MappedGraph *graph,string input,string output)
+{
+    cout<<"Run deepwalk algorithm"<<endl<<endl;
+    time_t start_time = clock();
+    Deep_Walk dw(graph);
+    vector<vector<double> >  ans = dw.solve(5,100,100,10);
+    time_t end_time = clock();
+    printf( "Running time of word2vec algorithm: %.4f\n",(end_time - start_time + 0.0) / CLOCKS_PER_SEC);
+}
+
+void runNode2vec(MappedGraph *graph,string input,string output)
+{
+    cout<<"Run node2vec algorithm"<<endl<<endl;
+    time_t start_time = clock();
+    Node2Vec nv(graph);
+    vector<vector<double> >  ans = nv.solve(10,100,50,5);
+    time_t end_time = clock();
+    printf( "Running time of word2vec algorithm: %.4f\n",(end_time - start_time + 0.0) / CLOCKS_PER_SEC);
+}
+
 int main(int argc, char **argv) {
     int vertexNum = 40;
     double edgeProb = 0.8;
@@ -651,14 +674,15 @@ int main(int argc, char **argv) {
     if (args.output().length() > 0) {
         output_dir = args.output().c_str();
     }
-	if(!(task=="md"||task=="mt"))
-		system(("mkdir -p " + output_dir).c_str());
+	//if(!(task=="md"||task=="mt"))
+	//	system(("mkdir -p " + output_dir).c_str());
     printf("Output: %s\n", output_dir.c_str());
     double p=args.para_sample_probability();
     double c = args.para_const();
     int sub_task=args.para_cd_task();
     int K =args.para_im_k();
-    vid_t v=args.para_start();
+    int s=args.para_start();
+    int e=args.para_end();
     // generate a graph
     if (task == "gg") {
         makeFakeData(vertexNum, edgeProb);
@@ -691,6 +715,7 @@ int main(int argc, char **argv) {
 	runDynamicMinimumSpanningTree(2,args.input());
 	return 0;
     }
+
     MappedGraph *graph = MappedGraph::Open(args.input().c_str());
     cout << "===== graph information =====" << endl;
     cout << "#vertices: " << graph -> VertexCount() << endl;
@@ -702,17 +727,24 @@ int main(int argc, char **argv) {
     }
 
     if (task =="cs"){
-	    runCommunityDetectionSampling(graph,input,sub_task,p,K);
+	    runCommunityDetectionSampling(graph,input,sub_task,p,K,s,e);
     }
 
     if (task =="ct"){
-	    testCommunityDetectionSampling(graph,input,sub_task);
+	    testCommunityDetectionSampling(graph,input,sub_task,s,e);
     }
 
     if (task =="sr"){
-        runSimRank(graph,input,query,sub_task,c,v,K);
+        runSimRank(graph,input,query,sub_task,c,s,K);
     }
 
+
+    if (task =="dw"){
+        runDeepWalk(graph,input,output_dir);
+    }
+    if (task =="nv"){
+        runNode2vec(graph,input,output_dir);
+    }
     //declare task
 
     // call influence maximization

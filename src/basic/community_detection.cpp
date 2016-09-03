@@ -8,8 +8,6 @@
 #include <set>
 #include <cstdlib>
 #include <ctime>
-#include <cmath>
-
 using namespace std;
 using namespace sae::io;
 
@@ -150,7 +148,7 @@ double  Community_detection::compute_modularity(MappedGraph *graph, vector<eid_t
         ai=ai_temp/m;
         ans+=eii-ai*ai;
     }
-    return fabs(ans);
+    return ans;
 }
 
 
@@ -187,7 +185,7 @@ pair<vector<vid_t>,double>   Community_detection::run_Girvan_NewMan(MappedGraph 
 
 pair<vector<vid_t>,double>   Community_detection::run_label_propagation(MappedGraph *graph)
 {
-        srand(1);
+        srand(time(NULL));
         unsigned int  n=graph->VertexCount();
         vector<vector<vid_t>> neighbor(n);
         vector<vid_t> C(n);
@@ -560,6 +558,57 @@ pair<vector<vid_t>,double> Community_detection::run_louvain_method(MappedGraph *
     return make_pair(community,best_q);
 }
 
+pair<vector<vid_t>,double> Community_detection::run_hierarchical_clustering(MappedGraph *graph,int K)
+{
+    int n=graph->VertexCount(),num=n;
+    vector<int> temp(n,-1);
+    vector<vid_t> community(n,0);
+    vector<vector<int> >dis(n,temp);
+    vector<vector<vid_t> >region(n);
+    for(int i=0;i<n;i++)
+    {
+        dis[i]=BFS(graph,i,1000);
+        region[i].push_back(i);
+    }
+    while(num>K)
+    {
+        int min_dis=10000,min_i=0,min_j=1;
+        for(int i=0;i<n;i++)
+            for(int j=0;j<n;j++)
+                if(region[i].size()!=0&&region[j].size()!=0&&i!=j)
+                {
+                    double dis_total=0;
+                    for(int k=0;k<region[i].size();k++)
+                        for(int l=0;l<region[j].size();l++)
+                            dis_total+=dis[region[i][k]][region[j][l]];
+                    double dis_average=dis_total/(region[i].size()*region[j].size());
+                    if(min_dis>dis_average)
+                    {
+                        min_dis=dis_average;
+                        min_i=i;min_j=j;
+                    }
+                }
+        for(int i=0;i<region[min_i].size();i++)
+            region[min_j].push_back(region[min_i][i]);
+        region[min_i].clear();
+        num--;
+    }
+    int k=1;
+    map<vid_t,vid_t> map_seq;
+    for(int i=0;i<n;i++)
+    {
+        if(region[i].size()>0){
+            for(int j=0;j<region[i].size();j++)
+                map_seq[region[i][j]]=k;
+            k++;
+        }
+    }
+    for(int i=0;i<n;i++)
+        community[i]=map_seq[i];
+    double modularity=compute_modularity(graph,community,K);
+    return make_pair(community,modularity);
+}
+
 pair<vector<vid_t>,double> Community_detection::solve(int K,int sub_task)
 {
     pair<vector<vid_t>,double> community;
@@ -568,7 +617,8 @@ pair<vector<vid_t>,double> Community_detection::solve(int K,int sub_task)
     case 2:community=run_label_propagation(graph);break;
     case 3:community=run_louvain_method(graph);break;
     case 4:community=run_k_community_core(graph,K);break;
-    default:community=run_Girvan_NewMan(graph,K);break;
+    case 5:community=run_hierarchical_clustering(graph,K);break;
+    default:community=run_louvain_method(graph);break;
     }
     return community;
 }

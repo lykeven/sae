@@ -8,33 +8,250 @@
 #include <set>
 #include <cstdlib>
 #include <ctime>
-
 using namespace std;
 using namespace sae::io;
 
 Community_detection_sampling::Community_detection_sampling(MappedGraph *graph)
     :Solver(graph){
 }
-
 Community_detection_sampling::~Community_detection_sampling() {
 }
 
+MappedGraph * FP(MappedGraph *graph,int& num,map<vid_t,vid_t>& map_to,int K,map<vid_t,vid_t>& is_part)
+{
+    for(int i=0;i<num;i++)
+    {
+        is_part[i]=i;
+        map_to[i]=i;
+    }
+}
 
-MappedGraph * select_sub_graph(MappedGraph *graph,int& num,map<vid_t,vid_t>& map_to,int K)
+
+MappedGraph * RNS(MappedGraph *graph,int& num,map<vid_t,vid_t>& map_to,int K,map<vid_t,vid_t>& is_part)
+{
+    int n=graph->VertexCount();
+    vector<vid_t> temp(n);
+    for (unsigned int i=0;i<n;i++)  temp[i]=i;
+    vector<vid_t> rand_seq=temp;
+    for (int j =n-1;j>=0;j--)
+    {
+        int x = rand() % (n - 1);
+        unsigned tem =rand_seq[j];
+        rand_seq[j]=rand_seq[x];
+        rand_seq[x]=tem;
+    }
+    for(int i=0;i<num;i++)
+    {
+        vid_t v= rand_seq[i];
+        is_part[v]=i;
+        map_to[i]=v;
+    }
+}
+
+MappedGraph * RNI(MappedGraph *graph,int& num,map<vid_t,vid_t>& map_to,int K,map<vid_t,vid_t>& is_part)
+{
+    int n=graph->VertexCount(),m=graph->EdgeCount();
+    vector<pair<int, int> > indegree;
+    auto viter = graph->Vertices();
+    for (int i=0;i<n;i++)
+    {
+        viter->MoveTo(i);
+        indegree.push_back(make_pair(viter->OutEdgeCount(),i));
+    }
+    sort(indegree.begin(), indegree.end());
+    reverse(indegree.begin(), indegree.end());
+    int max_indegree=indegree[0].first+1,max_v=0;
+    vector<vector<vid_t>> indegree_dis(max_indegree);
+    vector<vid_t> rand_list(num);
+    for (int i=0;i<n;i++)
+        indegree_dis[indegree[i].first].push_back(indegree[i].second);
+    for(int i=0;i<max_indegree;i++)
+    {
+        int m=indegree_dis[i].size();
+        if(m==0) continue;
+        int k=m*num/n+1;
+        for(int j=0;j<k;j++)
+        {
+            int rand_index=rand()%k;
+            if(find(rand_list.begin(),rand_list.end(),indegree_dis[i][rand_index])!=rand_list.end()){j--;continue;}
+            if(max_v>=num) break;
+            rand_list[max_v++]=indegree_dis[i][rand_index];
+        }
+    }
+    for(int i=0;i<num;i++)
+    {
+        vid_t v =rand_list[i];
+        is_part[v]=i;
+        map_to[i]=v;
+    }
+}
+
+MappedGraph * RJ(MappedGraph *graph,int& num,map<vid_t,vid_t>& map_to,int K,map<vid_t,vid_t>& is_part)
+{
+    int n=graph->VertexCount(),sample_num=0;
+    double jump_p=0.15;
+    vector<vector<vid_t>> outdegree(n);
+    map<vid_t,vid_t>::iterator it;
+    auto viter = graph->Vertices();
+    for(int i=0;i<n;i++)
+    {
+        viter->MoveTo(i);
+        for(auto eiter = viter->OutEdges(); eiter->Alive(); eiter->Next())
+            outdegree[i].push_back(eiter->TargetId());
+    }
+    int s=rand() % n;
+    is_part[s]=sample_num;
+    map_to[sample_num]=s;
+    sample_num++;
+    while(1)
+    {
+        if(sample_num>=num) break;
+        viter->MoveTo(s);
+        bool is_jump=rand()%100<15?true:false;
+        if(is_jump)
+        {
+            s=rand() % n;
+            it = is_part.find(s);
+            if (it == is_part.end())
+            {
+                is_part[s]=sample_num;
+                map_to[sample_num]=s;
+                sample_num++;
+            }
+        }
+        else
+        {
+            int m=outdegree[s].size();
+            if(m==0) continue;
+            int  rand_num=rand() % m ;
+            s=outdegree[s][rand_num];
+            it = is_part.find(s);
+            if (it == is_part.end())
+            {
+                is_part[s]=sample_num;
+                map_to[sample_num]=s;
+                sample_num++;
+            }
+        }
+    }
+}
+
+MappedGraph * MAXI(MappedGraph *graph,int& num,map<vid_t,vid_t>& map_to,int K,map<vid_t,vid_t>& is_part)
+{
+    int n=graph->VertexCount(),m=graph->EdgeCount();
+    auto viter = graph->Vertices();
+    vector<pair<int, int> > indegree;
+    for (int i=0;i<n;i++)
+    {
+        viter->MoveTo(i);
+        indegree.push_back(make_pair(viter->OutEdgeCount(),i));
+    }
+    sort(indegree.begin(), indegree.end());
+    reverse(indegree.begin(), indegree.end());
+    for(int i=0;i<num;i++)
+    {
+        vid_t v =indegree[i].second;
+        is_part[v]=i;
+        map_to[i]=v;
+    }
+}
+
+MappedGraph * CC(MappedGraph *graph,int& num,map<vid_t,vid_t>& map_to,int K,map<vid_t,vid_t>& is_part)
+{
+    int n=graph->VertexCount(),m=graph->EdgeCount();
+    vector<int > indegree(n),is_exist(n,0);
+    vector<pair<int, int> > indegree_sort;
+    vector<vector<vid_t>> node_target(n);
+    auto viter = graph->Vertices();
+    int T=num/K;
+    for (int i=0;i<n;i++)
+    {
+        viter->MoveTo(i);
+        vid_t num=viter->OutEdgeCount();
+        indegree[i]=num;
+         indegree_sort.push_back(make_pair(num,i));
+        vector<vid_t> temp(num);
+        node_target[i]=temp;
+        int k=0;
+        for(auto eiter = viter->OutEdges(); eiter->Alive(); eiter->Next())
+            node_target[i][k++]=eiter->TargetId();
+    }
+    sort(indegree_sort.begin(), indegree_sort.end());
+    reverse(indegree_sort.begin(), indegree_sort.end());
+    set<vid_t> kernel_set;
+    set<vid_t>::reverse_iterator rit;
+     int k=0;
+    for(int i=0;i<K;i++)
+    {
+        set<vid_t> kernel_new;
+        vid_t rand_v=indegree_sort[k].second;
+        while(is_exist[rand_v])
+        {
+            rand_v=indegree_sort[++k].second;
+            if(k>=n) break;
+        }
+        if(k>=n) break;
+        kernel_set.insert(rand_v);
+        kernel_new.insert(rand_v);
+        is_exist[rand_v]=i+1;
+        for(int j=1;j<T;j++)
+        {
+            int max_con=0,max_indegree=0,max_index=0;
+            for (rit = kernel_new.rbegin(); rit != kernel_new.rend(); rit++)
+            {
+                for(int c=0;c<node_target[*rit].size();c++)
+                {
+                    int neighbor_v=node_target[*rit][c],con=0;
+                    if(is_exist[neighbor_v]) continue;
+                    for(int b=0;b<node_target[neighbor_v].size();b++)
+                        if(is_exist[node_target[neighbor_v][b]]) con++;
+                    if(con>=max_con)
+                    {
+                        max_con=con;
+                        if(max_indegree<indegree[neighbor_v])
+                        {
+                            max_indegree=indegree[neighbor_v];
+                            max_index=neighbor_v;
+                        }
+                    }
+                }
+            }
+            is_exist[max_index]=i+1;
+            kernel_set.insert(max_index);
+            kernel_new.insert(max_index);
+        }
+    }
+    num=0;
+    for(int i=0;i<n;i++)
+    {
+        if(is_exist[i])
+        {
+            vid_t sample_v=num;
+            is_part[i]=sample_v;
+            map_to[sample_v]=i;
+            num++;
+        }
+    }
+}
+
+MappedGraph * select_sub_graph(MappedGraph *graph,int& num,map<vid_t,vid_t>& map_to,int K,int sm)
 {
     GraphBuilder<int> sub_graph_builder;
     map<vid_t,vid_t> is_part;
+    switch(sm)
+    {
+        case 0: FP(graph, num,map_to, K,is_part);break;
+        case 1: RNS(graph, num,map_to, K,is_part);break;
+        case 2: RNI(graph, num,map_to, K,is_part);break;
+        case 3: RJ(graph, num,map_to, K,is_part);break;
+        case 4: MAXI(graph, num,map_to, K,is_part);break;
+        case 5: CC(graph, num,map_to, K,is_part);break;
+        default:FP(graph, num,map_to, K,is_part);break;
+    }
     int n=graph->VertexCount(),m=graph->EdgeCount();
     auto viter = graph->Vertices();
-
     for(int i=0;i<num;i++)
-    {
-
-        vid_t sample_v=i;
-        map_to[i]=sample_v;
-        is_part[sample_v]=i;
-        sub_graph_builder.AddVertex(i,0);
-    }
+            sub_graph_builder.AddVertex(i,0);
     for(int i=0;i<num;i++)
     {
         vid_t origin_v=map_to[i];
@@ -48,14 +265,18 @@ MappedGraph * select_sub_graph(MappedGraph *graph,int& num,map<vid_t,vid_t>& map
     return sub_graph;
 }
 
-vector<vid_t> allocate_vertex_with_shortest_path(MappedGraph *graph,vector<vid_t> community,int sample_num)
+vector<vid_t> allocate_vertex_with_shortest_path(MappedGraph *graph,vector<vid_t> community,int sample_num,int K,map<vid_t,vid_t> map_to)
 {
         int n=graph->VertexCount();
-        vector<vid_t> communityChange(n,1);
+        vector<vid_t> communityChange(n,1),is_part(n,0);;
         for(int i=0;i<sample_num;i++)
-            communityChange[i]=community[i];
-        for(int i=sample_num;i<n;i++)
         {
+            communityChange[map_to[i]]=community[i];
+            is_part[map_to[i]]=1;
+        }
+        for(int i=0;i<n;i++)
+        {
+            if(is_part[i]==1) continue;
             queue < int >  search_queue;
             vector< int > dis(n,-1);
             dis[i] = 0;
@@ -76,11 +297,11 @@ vector<vid_t> allocate_vertex_with_shortest_path(MappedGraph *graph,vector<vid_t
                     }
                 }
             }
-            int min_value=10000,min_index=0;
+            int min_value=10000,min_index=rand()%sample_num;
             for(int j=0;j<sample_num;j++)
-                if(dis[j]>0&&dis[j]<min_value)
+                if(dis[map_to[j]]>0&&dis[map_to[j]]<min_value)
                 {
-                    min_value=dis[j];
+                    min_value=dis[map_to[j]];
                     min_index=j;
                 }
             communityChange[i]=community[min_index];
@@ -138,25 +359,26 @@ vector<vid_t> allocate_vertex_with_shortest_path2(MappedGraph *graph,vector<vid_
             communityChange[j]=min_index+1;
         }
         return communityChange;
-
 }
 
-pair<vector<vid_t>,double> allocate_vertex_with_label_propagation(MappedGraph *graph,vector<vid_t> community,int sample_num,int K)
+vector<vid_t>allocate_vertex_with_label_propagation(MappedGraph *graph,vector<vid_t> community,int sample_num,int K,map<vid_t,vid_t> map_to)
 {
         srand(time(NULL));
         unsigned int  n=graph->VertexCount();
         vector<vector<vid_t>> neighbor(n);
-        vector<vid_t> C(n,1);
-        vector<vid_t> temp(n);
-        vector<vid_t> max_community=C;
+        vector<vid_t> C(n,1),temp(n),max_community(n,1),is_part(n,0);
+        for(int i=0;i<sample_num;i++)
+        {
+                C[map_to[i]]=community[i];
+                is_part[map_to[i]]=1;
+        }
         double max_modularity=0;
         vid_t max_community_count=K;
         auto viter = graph->Vertices();
         for (unsigned int i=0;i<n;i++)
         {
                 temp[i]=i;
-                if(i<sample_num)
-                    C[i]=community[i];
+                if(is_part[i]==1)   continue;
                 else{
                     C[i]=rand()%max_community_count+1;
                     viter->MoveTo(i);
@@ -179,40 +401,42 @@ pair<vector<vid_t>,double> allocate_vertex_with_label_propagation(MappedGraph *g
                 for(unsigned int j=0;j<n;j++)
                 {
                         unsigned v=rand_seq[j];
-                        if (v<sample_num) continue;
-                        vector <vid_t> vertex_neigh=neighbor[v];
-                        for (unsigned int k=0;k<vertex_neigh.size();k++)
-                            vertex_neigh[k]=C[vertex_neigh[k]];
-                        sort(vertex_neigh.begin(),vertex_neigh.end());
-                        int max_count=1,new_count=1,max_vertex=vertex_neigh[0],new_vertex=vertex_neigh[0];
-                        for (unsigned int k=1;k<vertex_neigh.size();k++)
+                        if(is_part[v]==1) continue;
+                        vector <vid_t> label=neighbor[v];
+                        for (unsigned int k=0;k<label.size();k++)
+                            label[k]=C[label[k]];
+                        sort(label.begin(),label.end());
+                        int max_count=1,max_v=label[0],new_count=1,new_v=label[0];
+                        vector<int>max_list;
+                        for(int i=1;i<label.size();i++)
                         {
-                                if (vertex_neigh[k]==new_vertex) new_count++;
-                                if(vertex_neigh[k]!=max_vertex||k==vertex_neigh.size()-1)
+                            if(label[i]==new_v) new_count++;
+                            if(label[i]!=new_v||i==label.size()-1)
+                            {
+                                if(new_count==max_count)
+                                    max_list.push_back(new_v);
+                                if(new_count>max_count)
                                 {
-                                    if(new_count>max_count)
-                                    {
-                                            max_count=new_count;
-                                            max_vertex=new_vertex;
-                                    }
-                                    new_vertex=vertex_neigh[k];
-                                    new_count=1;
+                                    max_list.clear();
+                                    max_list.push_back(new_v);
+                                    max_count=new_count;
+                                    max_v=new_v;
                                 }
+                                if(i==(label.size()-1)&&max_count==1) max_list.push_back(label[i]);
+                                new_count=1;
+                                new_v=label[i];
+                            }
                         }
-                        if(max_count==1) max_vertex=vertex_neigh[rand()%vertex_neigh.size()];
-                        if (C[v]!=max_vertex)
+                        if(max_list.size()==0) max_v=label[0];
+                        else  max_v=max_list[rand()%max_list.size()];
+                        if (C[v]!=max_v)
                         {
-                                C[v]=max_vertex;
+                                C[v]=max_v;
                                 is_success=false;
                         }
                 }
-            Community_detection cc(graph);
-            double modularity=cc.compute_modularity(graph,C,max_community_count);
-            if (modularity>max_modularity) {
-                max_modularity=modularity;max_community=C;
-            }
         }
-            return make_pair(max_community,max_modularity);
+        return C;
 }
 
 
@@ -331,84 +555,100 @@ void recurPermutation(vector<vid_t> c,vector<vid_t> c2,double * max_overlap,vect
     }
 }
 
-void  Community_detection_sampling::test_community_sampling(MappedGraph *graph,int min_rate,int max_rate,int min_k,int max_k,int sub_task)
+void  Community_detection_sampling::test_community_sampling(MappedGraph *graph,int sub_task,int sm,int ex)
 {
     Community_detection cd(graph);
+    double P[]={0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9};
+    int K[]={2,4,6};
+    int n1=sizeof(P) / sizeof(P[0]), n2=sizeof(K) / sizeof(K[0]);
     cout<<"\tRun community detection sampling algorithm"<<endl;
-    double overlap[(max_rate-min_rate)/10+1][max_k-min_k+1];
-    double mod1[(max_rate-min_rate)/10+1][max_k-min_k+1];
-    double mod2[(max_rate-min_rate)/10+1][max_k-min_k+1];
-    double t1[(max_rate-min_rate)/10+1][max_k-min_k+1];
-    double t2[(max_rate-min_rate)/10+1][max_k-min_k+1];
-    double rate[(max_rate-min_rate)/10+1][max_k-min_k+1];
-    for (int K=min_k;K<=max_k;K++)
+    double overlap[n1][n2],mod[n2],mod1[n1][n2],mod2[n1][n2],t1[n1][n2],t2[n1][n2],rate[n1][n2];
+    for (int i=0;i<n2;i++)
     {
         time_t start_time = clock();
-        pair<vector<vid_t>,double> ans=cd.solve(K,sub_task);
+        pair<vector<vid_t>,double> ans=cd.solve(K[i],sub_task);
         time_t end_time = clock();
-
+        mod[i]=ans.second;
         cout<<endl<<"\tmodularity is "<<ans.second<<endl;
-        for (int p=min_rate;p<=max_rate;p+=10)
+        for (int j=0;j<n1;j++)
         {
-            cout<<"\n\n\sampling rate:"<<p<<"%"<<"\tcommunity number:"<<K<<endl<<endl;
-            int n=graph->VertexCount();
+            cout<<"\n\n\sampling rate:"<<P[j]<<"\tcommunity number:"<<K[i]<<endl<<endl;
             time_t start_time2 = clock();
-            pair<vector<vid_t>,double> ans2=solve(p/100.0,K,sub_task);
-            cout<<endl<<"\tmodularity is "<<ans2.second<<endl;
+            int n=graph->VertexCount(), sample_num=n*P[j];
+            map<vid_t,vid_t> map_to;
+            MappedGraph * sub_graph= select_sub_graph(graph,sample_num,map_to,K[i],sm);
+
+            Community_detection cd2(sub_graph);
+            pair<vector<vid_t>,double> ans2=cd2.solve(K[i],sub_task);
+            int k=*max_element(ans2.first.begin(),ans2.first.end());
+            cout<<endl<<endl<<"\tmodularity is "<<ans2.second<<"\tK is "<<k<<endl;
+            mod1[j][i]=ans2.second;
+            vector<vid_t> community(n);
+            switch(ex)
+            {
+                case 1:community=allocate_vertex_with_shortest_path(graph,ans.first,sample_num,k,map_to);break;
+                case 2:community=allocate_vertex_with_shortest_path2(graph,ans.first,sample_num,k,map_to);break;
+                case 3:community=allocate_vertex_with_label_propagation(graph,ans.first,sample_num,k,map_to);break;
+                default:community=allocate_vertex_with_shortest_path2(graph,ans.first,sample_num,k,map_to);break;
+            }
+            double modularity=cd.compute_modularity(graph,community,k);
+            cout << endl<<endl<<"\tafter assign vertex " <<"\tmodularity is "<<modularity<<endl<<endl;;
+            pair<vector<vid_t>,double> ans3=solve(P[j],K[i],sub_task,sm,ex);
+            cout<<endl<<"\tmodularity is "<<ans3.second<<endl;
             time_t end_time2 = clock();
-             t1[int(p-min_rate)/10][K-min_k]=(end_time- start_time+ 0.0) / CLOCKS_PER_SEC ;
-            t2[int(p-min_rate)/10][K-min_k]=(end_time2- start_time2 + 0.0) / CLOCKS_PER_SEC ;
-            rate[int(p-min_rate)/10][K-min_k]=t1[int(p-min_rate)/10][K-min_k]/t2[int(p-min_rate)/10][K-min_k];
+             t1[j][i]=(end_time- start_time+ 0.0) / CLOCKS_PER_SEC ;
+            t2[j][i]=(end_time2- start_time2 + 0.0) / CLOCKS_PER_SEC ;
+            rate[j][i]=t1[j][i]/t2[j][i];
 
             double  overlapping=0;
             double *point_overlap=&overlapping;
-            vector<int> a(K);
-            for (int i=0;i<K;i++)
-                a[i]=i+1;
-            recurPermutation(ans.first,ans2.first,point_overlap,a,K,0);
-            overlap[int(p-min_rate)/10][K-min_k]=*point_overlap;
-            mod1[int(p-min_rate)/10][K-min_k]=ans.second;
-            mod2[int(p-min_rate)/10][K-min_k]=ans2.second;
+            vector<int> a(K[i]);
+            for (int k=0;k<K[i];k++)
+                a[k]=k+1;
+            recurPermutation(ans.first,ans3.first,point_overlap,a,K[i],0);
+            overlap[j][i]=*point_overlap;
+            mod2[j][i]=ans3.second;
         }
     }
-    FILE* fout = fopen("output/community_detection_sampling/table" ,"w");
+    FILE* fout = fopen("output/table" ,"w");
     fprintf(fout, "rate\t");
-    for (int K=min_k;K<=max_k;K++)
-        fprintf(fout, "mod1\tmod2\tt1\tt2\toverlap\t");
+    for (int i=0;i<n2;i++)
+        fprintf(fout, "mod\tmod1\tmod2\tt1\tt2\toverlap\t");
     fprintf(fout, "\n");
-    for (int p=min_rate;p<=max_rate;p+=10)
+    for (int i=0;i<n1;i++)
         {
-            fprintf(fout, "%d%%\t",p);
-            for (int K=min_k;K<=max_k;K++)
-            fprintf(fout, "%.4f\t%.4f\t%.2f\t%.2f\t%.2f\t",mod1[int(p-min_rate)/10][K-min_k],mod2[int(p-min_rate)/10][K-min_k],
-            t1[int(p-min_rate)/10][K-min_k],t2[int(p-min_rate)/10][K-min_k],overlap[int(p-min_rate)/10][K-min_k]);
+            fprintf(fout, "%.1f%%\t",P[i]*100);
+            for (int j=0;j<n2;j++)
+            fprintf(fout, "%.4f\t%.4f\t%.4f\t%.2f\t%.2f\t%.2f\t",mod[j],mod1[i][j],mod2[i][j],t1[i][j],t2[i][j],overlap[i][j]);
              fprintf(fout, "\n");
         }
 }
 
-pair<vector<vid_t>,double>  Community_detection_sampling::solve(double p,int K,int sub_task)
+pair<vector<vid_t>,double>  Community_detection_sampling::solve(double p,int K,int sub_task,int sm,int ex)
 {
-    int n=graph->VertexCount();
-    int sample_num=n*p;
+    int n=graph->VertexCount(), sample_num=n*p;
     map<vid_t,vid_t> map_to;
-    MappedGraph * sub_graph= select_sub_graph(graph,sample_num,map_to,K);
+    MappedGraph * sub_graph= select_sub_graph(graph,sample_num,map_to,K,sm);
 
     Community_detection cd(sub_graph);
-
     pair<vector<vid_t>,double> ans=cd.solve(K,sub_task);
     int k=*max_element(ans.first.begin(),ans.first.end());
     cout<<endl<<endl<<"\tmodularity is "<<ans.second<<"\tK is "<<k<<endl;
-    //vector<vid_t> final_community=allocate_vertex_with_shortest_path(graph,ans.first,sample_num);
-    vector<vid_t> final_community=allocate_vertex_with_shortest_path2(graph,ans.first,sample_num,k,map_to);
-    double modularity=cd.compute_modularity(graph,final_community,k);
-    cout << endl<<endl<<"\tafter assign vertex " <<"\tmodularity is "<<modularity<<endl;
-    return make_pair(final_community,modularity);
+
+     vector<vid_t> community(n);
+     switch(ex)
+     {
+        case 1:community=allocate_vertex_with_shortest_path(graph,ans.first,sample_num,k,map_to);break;
+        case 2:community=allocate_vertex_with_shortest_path2(graph,ans.first,sample_num,k,map_to);break;
+        case 3:community=allocate_vertex_with_label_propagation(graph,ans.first,sample_num,k,map_to);break;
+        default:community=allocate_vertex_with_shortest_path2(graph,ans.first,sample_num,k,map_to);break;
+     }
+    double modularity=cd.compute_modularity(graph,community,k);
+    cout << endl<<endl<<"\tafter assign vertex " <<"\tmodularity is "<<modularity<<endl<<endl;;
+    return make_pair(community,modularity);
 
 //     ans=fixed_community(graph,final_community,modularity,k);
 //     k=*max_element(ans.first.begin(),ans.first.end());
 //     cout<<endl<<endl<<"\tafter fixed community " << "\tmodularity is "<<ans.second<<"\tK is "<<k<<endl;
 //      return ans;
-
-	//pair<vector<vid_t>,double> final_community=allocate_vertex_with_label_propagation(graph,ans.first,sample_num,k);
-	//return final_community;
 }
