@@ -123,7 +123,7 @@ after all the edges' infomation of MST, the last line is the total time of this 
 
 
 
-##### Example for Community Detection
+#### Example for Community Detection
 The input file is placed at ./data/facebook, and output file will be placed at ./output/community_detection or ./output/community_detection_sampling
 
 To run community detection with community number as 5 and aglorithm 4:
