@@ -19,6 +19,8 @@
 #include "streaming/dynamicMinimumSpanningTree.h"
 #include "network_embedding/deepwalk.h"
 #include "network_embedding/node2vec.h"
+#include "network_embedding/line.h"
+#include "network_embedding/test_embedding.h"
 #include <iostream>
 #include <fstream>
 #include <cstdio>
@@ -631,7 +633,7 @@ void runDeepWalk(MappedGraph *graph,string input,string output)
     Deep_Walk dw(graph);
     vector<vector<double> >  ans = dw.solve(5,100,100,10);
     time_t end_time = clock();
-    printf( "Running time of word2vec algorithm: %.4f\n",(end_time - start_time + 0.0) / CLOCKS_PER_SEC);
+    printf( "Running time of deepwalk algorithm: %.4f\n",(end_time - start_time + 0.0) / CLOCKS_PER_SEC);
 }
 
 void runNode2vec(MappedGraph *graph,string input,string output)
@@ -639,9 +641,27 @@ void runNode2vec(MappedGraph *graph,string input,string output)
     cout<<"Run node2vec algorithm"<<endl<<endl;
     time_t start_time = clock();
     Node2Vec nv(graph);
-    vector<vector<double> >  ans = nv.solve(10,100,50,5);
+    vector<vector<double> >  ans = nv.solve(10,100,100,10);
     time_t end_time = clock();
-    printf( "Running time of word2vec algorithm: %.4f\n",(end_time - start_time + 0.0) / CLOCKS_PER_SEC);
+    printf( "Running time of node2vec algorithm: %.4f\n",(end_time - start_time + 0.0) / CLOCKS_PER_SEC);
+}
+
+void runLINE(MappedGraph *graph,string input,string output)
+{
+    cout<<"Run LINE algorithm"<<endl<<endl;
+    time_t start_time = clock();
+    LINE ln(graph);
+    vector<vector<double> >  ans = ln.solve(1,100);
+    time_t end_time = clock();
+    printf( "Running time of LINE algorithm: %.4f\n",(end_time - start_time + 0.0) / CLOCKS_PER_SEC);
+}
+
+void TestEmbedding(MappedGraph *graph,string input,string label_file,string output)
+{
+    //string label_file = "./resource/karate_label.txt";
+    readNodeMap(input);
+    Test_Embedding te(graph);
+    vector<pair<double,double>> ans = te.solve(5,100,100,10,1,mapToSae,label_file,output);
 }
 
 int main(int argc, char **argv) {
@@ -742,8 +762,17 @@ int main(int argc, char **argv) {
     if (task =="dw"){
         runDeepWalk(graph,input,output_dir);
     }
+ 
     if (task =="nv"){
         runNode2vec(graph,input,output_dir);
+    }
+    
+    if (task =="ln"){
+        runLINE(graph,input,output_dir);
+    }
+    
+    if (task =="te"){
+        TestEmbedding(graph,input,query,output_dir);
     }
     //declare task
 

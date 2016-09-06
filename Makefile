@@ -18,7 +18,8 @@ INCLUDE_DIR = -Isrc/lib
 # CXXFLAGS += -O2
 CXXFLAGS += -g -O0
 CXXFLAGS += #-static -static-libstdc++
-CXXFLAGS += -lpthread #-fopenmp
+CXXFLAGS += -lpthread #-fopenmp  -lboost
+CXXFLAGS += -lboost_thread-mt
 CXXFLAGS += $(DEFINES)
 CXXFLAGS += -std=c++11
 CXXFLAGS += -Wall -Wextra
