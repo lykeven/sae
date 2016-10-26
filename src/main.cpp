@@ -17,6 +17,7 @@
 #include "influence/influence_maximization.h"
 #include "social_analysis/social_main.h"
 #include "streaming/dynamicMinimumSpanningTree.h"
+#include "network_embedding/word2vec.h"
 #include "network_embedding/deepwalk.h"
 #include "network_embedding/node2vec.h"
 #include "network_embedding/line.h"
@@ -626,6 +627,17 @@ void runSimRank(MappedGraph *graph,string input,string query,int sub_task,double
     printf( "Running time of simrank algorithm: %.4f\n",(end_time - start_time + 0.0) / CLOCKS_PER_SEC);
 }
 
+void runWord2Vec(MappedGraph *graph,string input,string output)
+{
+    cout<<"Run word2vec algorithm"<<endl<<endl;
+    time_t start_time = clock();
+    Word2Vec wv(graph);
+    vector<vector<vid_t>> temp;
+    vector<vector<double> >  ans = wv.solve(temp,100,5,10,10,0.025);
+    time_t end_time = clock();
+    printf( "Running time of word2vec algorithm: %.4f\n",(end_time - start_time + 0.0) / CLOCKS_PER_SEC);
+}
+
 void runDeepWalk(MappedGraph *graph,string input,string output)
 {
     cout<<"Run deepwalk algorithm"<<endl<<endl;
@@ -661,7 +673,7 @@ void TestEmbedding(MappedGraph *graph,string input,string label_file,string outp
     //string label_file = "./resource/karate_label.txt";
     readNodeMap(input);
     Test_Embedding te(graph);
-    vector<pair<double,double>> ans = te.solve(5,100,100,10,1,mapToSae,label_file,output);
+    vector<pair<double,double>> ans = te.solve(5,100,100,5,1,mapToSae,label_file,output);
 }
 
 int main(int argc, char **argv) {
@@ -758,19 +770,22 @@ int main(int argc, char **argv) {
         runSimRank(graph,input,query,sub_task,c,s,K);
     }
 
+    if (task =="wv"){
+        runWord2Vec(graph,input,output_dir);
+    }
 
     if (task =="dw"){
         runDeepWalk(graph,input,output_dir);
     }
- 
+
     if (task =="nv"){
         runNode2vec(graph,input,output_dir);
     }
-    
+
     if (task =="ln"){
         runLINE(graph,input,output_dir);
     }
-    
+
     if (task =="te"){
         TestEmbedding(graph,input,query,output_dir);
     }

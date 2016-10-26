@@ -1,10 +1,9 @@
 #include "node2vec.h"
-#include "deepwalk.h"
+#include "word2vec.h"
 #include <vector>
 #include <stack>
 #include <algorithm>
 #include <iostream>
-#include "../lib/word2vec/word2vec.h"
 #include <initializer_list>
 using namespace std;
 using namespace sae::io;
@@ -14,47 +13,6 @@ Node2Vec::Node2Vec(MappedGraph *graph)
 }
 
 Node2Vec::~Node2Vec() {
-}
-
-vector<vid_t> alias_setup(vector<double> &prob)
-{
-    int cnt = prob.size();
-    vector<vid_t> J (cnt,0);
-    vector<double> q(cnt,1.0);
-    stack <vid_t> smaller,larger;
-    for(int i=0;i<prob.size();i++)
-    {
-        vid_t v = i;
-        q[v] = cnt*prob[i];
-        if(q[v]<1.0)
-            smaller.push(v);
-        else
-            larger.push(v);
-    }
-    while(smaller.size()>0&&larger.size()>0)
-    {
-        vid_t small = smaller.top(),large =larger.top();
-        smaller.pop();larger.pop();
-        J[small] = large;
-        q[large] = q[large] + q[small] -1.0;
-        if(q[large]<1.0)
-            smaller.push(large);
-        else
-            larger.push(large);
-    }
-    prob = q;
-    return J;
-}
-
-vid_t alias_draw(vector<vid_t> J,vector<double> p)
-{
-    int cnt = J.size();
-    vid_t kk = floor(random()%cnt);
-    double rand_p = 1.0 * rand() / RAND_MAX;
-    if (rand_p<p[kk])
-        return kk;
-    else
-        return J[kk];
 }
 
 vector<vector<vid_t>> generate_2nd_paths(MappedGraph* graph,int R,int T)
@@ -94,7 +52,7 @@ vector<vector<vid_t>> generate_2nd_paths(MappedGraph* graph,int R,int T)
             double sum = accumulate(u_neighbor_probs.begin(),u_neighbor_probs.end(),0);
             for(int j=0;j<u_neighbor_probs.size();j++)
                 u_neighbor_probs[j]/=sum;
-            u_neighbor = alias_setup(u_neighbor_probs);
+            u_neighbor = Word2Vec::alias_setup(u_neighbor_probs);
             i_neighbor.push_back(u_neighbor);
             i_neighbor_probs.push_back(u_neighbor_probs);
         }
@@ -124,7 +82,7 @@ vector<vector<vid_t>> generate_2nd_paths(MappedGraph* graph,int R,int T)
             {
                 int m=neighbor[now_in].size();
                 if(m==0) break;
-                vid_t  rand_num=alias_draw(alias_edges[s][now],probs[s][now]) ;
+                vid_t  rand_num=Word2Vec::alias_draw(alias_edges[s][now],probs[s][now]) ;
                 vid_t v=neighbor[now_in][rand_num];
                 s=now_in;
                 now  = rand_num;
@@ -140,27 +98,23 @@ vector<vector<vid_t>> generate_2nd_paths(MappedGraph* graph,int R,int T)
 
 std::vector<std::vector<double> >  Node2Vec::solve(int R, int T, int d, int w) {
 
-    Word2Vec<std::string> model(d,w);
-	using Sentence = Word2Vec<std::string>::Sentence;
-	using SentenceP = Word2Vec<std::string>::SentenceP;
-    std::vector<SentenceP> sentences;
-    SentenceP sentence(new Sentence);
-	model.sample_ = 0;
-	int n_workers = 4;
+    /*
+    vector<double> p;
+    p.push_back(0.3);p.push_back(0.3);p.push_back(0.4);
+    vector<vid_t> J = Word2Vec::alias_setup(p);
+    vector<int> cnt(p.size(),0);
+    int test_num = 10000;
+    for(int i=0;i<test_num;i++)
+    {
+        vid_t s = Word2Vec::alias_draw(J,p);
+        cnt[s] ++;
+    }
+    for(int i=0;i<p.size();i++)
+        printf("now pro:%.4f\tfre:%.4f\n",p[i],cnt[i]*1.0/test_num);
+    */
 
     vector<vector<vid_t>> sents = generate_2nd_paths(graph,R,T);
-    for(int i=0;i<sents.size();i++)
-    {
-        for(int j=0;j<sents[i].size();j++)
-            sentence->tokens_.push_back(sae::serialization::cvt_to_string(sents[i][j]));
-        sentence->words_.reserve(sentence->tokens_.size());
-        sentences.push_back(move(sentence));
-        sentence.reset(new Sentence);
-    }
-    model.build_vocab(sentences);
-    printf("load vocab completed...\n");
-    model.train(sentences, n_workers);
-    printf("train completed...\n");
-    vector<vector< double> > ans = model.wordVector();
+    Word2Vec wv(graph);
+    vector<vector<double> >  ans = wv.solve(sents,d,w,10,10,0.025);
     return ans;
 }

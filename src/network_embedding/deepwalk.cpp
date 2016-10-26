@@ -1,8 +1,8 @@
 #include "deepwalk.h"
+#include "word2vec.h"
 #include <vector>
 #include <algorithm>
 #include <iostream>
-#include "../lib/word2vec/word2vec.h"
 #include <initializer_list>
 using namespace std;
 using namespace sae::io;
@@ -19,7 +19,7 @@ vector<vector<vid_t>> generate_paths(MappedGraph* graph,int R,int T)
     int n=graph->VertexCount();
     vector<vid_t> temp(n,0);
     vector<vector<vid_t>> paths;
-    vector<vector<vid_t>> outdegree(n);
+    vector<vector<int>> outdegree(n);
     auto viter = graph->Vertices();
     for(int i=0;i<n;i++)
     {
@@ -41,14 +41,14 @@ vector<vector<vid_t>> generate_paths(MappedGraph* graph,int R,int T)
         for(int j=0;j<n;j++)
         {
             vector<vid_t> path(T);
-            int s=rand_seq[j];
+            vid_t s=rand_seq[j];
             path[0]=s;
             for(int j=1;j<T;j++)
             {
                 int m=outdegree[s].size();
                 if(m==0) break;
                 int  rand_num=rand() % m ;
-                int v=outdegree[s][rand_num];
+                vid_t v=outdegree[s][rand_num];
                 s=v;
                 path[j]=s;
             }
@@ -61,27 +61,8 @@ vector<vector<vid_t>> generate_paths(MappedGraph* graph,int R,int T)
 
 std::vector<std::vector<double> >  Deep_Walk::solve(int R, int T, int d, int w) {
 
-    Word2Vec<std::string> model(d,w);
-	using Sentence = Word2Vec<std::string>::Sentence;
-	using SentenceP = Word2Vec<std::string>::SentenceP;
-    std::vector<SentenceP> sentences;
-    SentenceP sentence(new Sentence);
-	model.sample_ = 0;
-	int n_workers = 4;
-
     vector<vector<vid_t>> sents = generate_paths(graph,R,T);
-    for(int i=0;i<sents.size();i++)
-    {
-        for(int j=0;j<sents[i].size();j++)
-            sentence->tokens_.push_back(sae::serialization::cvt_to_string(sents[i][j]));
-        sentence->words_.reserve(sentence->tokens_.size());
-        sentences.push_back(move(sentence));
-        sentence.reset(new Sentence);
-    }
-    model.build_vocab(sentences);
-    printf("load vocab completed...\n");
-    model.train(sentences, n_workers);
-    printf("train completed...\n");
-    vector<vector< double> > ans = model.wordVector();
+    Word2Vec wv(graph);
+    vector<vector<double> >  ans = wv.solve(sents,d,w,10,10,0.025);
     return ans;
 }
