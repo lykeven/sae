@@ -265,7 +265,7 @@ MappedGraph * select_sub_graph(MappedGraph *graph,int& num,map<vid_t,vid_t>& map
     return sub_graph;
 }
 
-vector<vid_t> allocate_vertex_with_shortest_path(MappedGraph *graph,vector<vid_t> community,int sample_num,int K,map<vid_t,vid_t> map_to)
+vector<vid_t> allocate_vertex_with_shortest_path(MappedGraph *graph,vector<vid_t> &community,int sample_num,int K,map<vid_t,vid_t> &map_to)
 {
         int n=graph->VertexCount();
         vector<vid_t> communityChange(n,1),is_part(n,0);;
@@ -309,15 +309,15 @@ vector<vid_t> allocate_vertex_with_shortest_path(MappedGraph *graph,vector<vid_t
         return communityChange;
 }
 
-vector<vid_t> allocate_vertex_with_shortest_path2(MappedGraph *graph,vector<vid_t> community,int sample_num,int K,map<vid_t,vid_t> map_to)
+vector<vid_t> allocate_vertex_with_shortest_path2(MappedGraph *graph,vector<vid_t> &community,int sample_num,int K,map<vid_t,vid_t> &map_to)
 {
         int n=graph->VertexCount();
         vector<vid_t> communityChange(n,1);
         vector<vid_t> is_part(n,0);
         for(int i=0;i<sample_num;i++)
         {
-                communityChange[map_to[i]]=community[i];
-                is_part[map_to[i]]=1;
+            communityChange[map_to[i]]=community[i];
+            is_part[map_to[i]]=1;
         }
 
         vector <int> t(K,-1);
@@ -327,12 +327,12 @@ vector<vid_t> allocate_vertex_with_shortest_path2(MappedGraph *graph,vector<vid_
             queue < int >  search_queue;
             for(int i=0;i<sample_num;i++)
             {
-                    vid_t origin_v=map_to[i];
-                    if (community[origin_v]==k+1)
-                    {
-                        dis[origin_v][k] = 0;
-                        search_queue.push(origin_v);
-                    }
+                vid_t origin_v=map_to[i];
+                if (community[origin_v]==k+1)
+                {
+                    dis[origin_v][k] = 0;
+                    search_queue.push(origin_v);
+                }
             }
             auto viter = graph->Vertices();
             while(!search_queue.empty())
@@ -361,7 +361,7 @@ vector<vid_t> allocate_vertex_with_shortest_path2(MappedGraph *graph,vector<vid_
         return communityChange;
 }
 
-vector<vid_t>allocate_vertex_with_label_propagation(MappedGraph *graph,vector<vid_t> community,int sample_num,int K,map<vid_t,vid_t> map_to)
+vector<vid_t>allocate_vertex_with_label_propagation(MappedGraph *graph,vector<vid_t> &community,int sample_num,int K,map<vid_t,vid_t> &map_to)
 {
         srand(time(NULL));
         unsigned int  n=graph->VertexCount();
@@ -369,22 +369,22 @@ vector<vid_t>allocate_vertex_with_label_propagation(MappedGraph *graph,vector<vi
         vector<vid_t> C(n,1),temp(n),max_community(n,1),is_part(n,0);
         for(int i=0;i<sample_num;i++)
         {
-                C[map_to[i]]=community[i];
-                is_part[map_to[i]]=1;
+            C[map_to[i]]=community[i];
+            is_part[map_to[i]]=1;
         }
         double max_modularity=0;
         vid_t max_community_count=K;
         auto viter = graph->Vertices();
         for (unsigned int i=0;i<n;i++)
         {
-                temp[i]=i;
-                if(is_part[i]==1)   continue;
-                else{
-                    C[i]=rand()%max_community_count+1;
-                    viter->MoveTo(i);
-                    for(auto eiter = viter->OutEdges(); eiter->Alive(); eiter->Next())
-                        neighbor[i].push_back(eiter->TargetId());
-                }
+            temp[i]=i;
+            if(is_part[i]==1)   continue;
+            else{
+                C[i]=rand()%max_community_count+1;
+                viter->MoveTo(i);
+                for(auto eiter = viter->OutEdges(); eiter->Alive(); eiter->Next())
+                    neighbor[i].push_back(eiter->TargetId());
+            }
         }
         bool is_success=false;
         while(!is_success)
@@ -393,10 +393,10 @@ vector<vid_t>allocate_vertex_with_label_propagation(MappedGraph *graph,vector<vi
                 vector<vid_t> rand_seq=temp;
                 for (int j =n-1;j>=0;j--)
                 {
-                        int x = rand() % (n - 1);
-                        unsigned tem =rand_seq[j];
-                        rand_seq[j]=rand_seq[x];
-                        rand_seq[x]=tem;
+                    int x = rand() % (n - 1);
+                    unsigned tem =rand_seq[j];
+                    rand_seq[j]=rand_seq[x];
+                    rand_seq[x]=tem;
                 }
                 for(unsigned int j=0;j<n;j++)
                 {
@@ -440,7 +440,7 @@ vector<vid_t>allocate_vertex_with_label_propagation(MappedGraph *graph,vector<vi
 }
 
 
-pair<vector<vid_t>,double> fixed_community(MappedGraph *graph,vector<vid_t> community,double mod,int K)
+pair<vector<vid_t>,double> fixed_community(MappedGraph *graph,vector<vid_t> &community,double mod,int K)
 {
     int n=graph->VertexCount(),m=graph->EdgeCount() ,weight=0;
     vector<vid_t> nodes(n),community_new(n);
@@ -537,7 +537,7 @@ pair<vector<vid_t>,double> fixed_community(MappedGraph *graph,vector<vid_t> comm
 }
 
 
-void recurPermutation(vector<vid_t> c,vector<vid_t> c2,double * max_overlap,vector<int> arr, int n, int i)
+void recurPermutation(vector<vid_t> &c,vector<vid_t> &c2,double * max_overlap,vector<int> &arr, int n, int i)
 {
     if(i==n-1) {
         int overlapping =0;

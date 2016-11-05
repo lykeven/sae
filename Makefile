@@ -16,7 +16,7 @@ PKGCONFIG_LIBS =
 INCLUDE_DIR = -Isrc/lib 
 
 # CXXFLAGS += -O2
-CXXFLAGS += -g -O0
+CXXFLAGS += -g -O2
 CXXFLAGS += #-static -static-libstdc++
 CXXFLAGS += -lpthread #-fopenmp  -lboost
 CXXFLAGS += -lboost_thread -lboost_system

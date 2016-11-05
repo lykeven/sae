@@ -189,6 +189,7 @@ void ReadDataFromSAE(MappedGraph *graph)
 	int vid1,vid2;
 	double weight;
     num_edges = graph->EdgeCount();
+	int num_nodes = graph->VertexCount();
 	num_vertices = 0;
 	edge_source_id = (int *)malloc(num_edges*sizeof(int));
 	edge_target_id = (int *)malloc(num_edges*sizeof(int));
@@ -198,24 +199,30 @@ void ReadDataFromSAE(MappedGraph *graph)
 		printf("Error: memory allocation failed!\n");
 		exit(1);
 	}
-    int k = 0;
-    for (auto itr = graph->Edges(); itr->Alive(); itr->Next()) {
-		vid_t x = itr->Source()->GlobalId(), y = itr->Target()->GlobalId();
-        
-        strcpy(name_v1, sae::serialization::cvt_to_string(x).c_str());
-        strcpy(name_v2, sae::serialization::cvt_to_string(y).c_str());
-        weight = 1.0;
-        vid1 = SearchHashTable(name_v1);
-        if (vid1 == -1) vid1 = AddVertex(name_v1);
-        vertex[vid1].degree += weight;
-        edge_source_id[k] = vid1;
+	for (int i = 0; i < num_nodes; i++)
+	{
+	    strcpy(name_v1, sae::serialization::cvt_to_string(i).c_str());
+	    vid1 = SearchHashTable(name_v1);
+	    if (vid1 == -1)
+		vid1 = AddVertex(name_v1);
+		//printf("sae:%d\tline:%d\n",i,vid1);
+	}
+	int k = 0;
+	for (auto itr = graph->Edges(); itr->Alive(); itr->Next())
+	{
+	    vid_t x = itr->Source()->GlobalId(), y = itr->Target()->GlobalId();
+		strcpy(name_v1, sae::serialization::cvt_to_string(x).c_str());
+		strcpy(name_v2, sae::serialization::cvt_to_string(y).c_str());
+		weight = 1.0;
+		vid1 = SearchHashTable(name_v1);
+	    vertex[vid1].degree += weight;
+	    edge_source_id[k] = vid1;
 
-        vid2 = SearchHashTable(name_v2);
-        if (vid2 == -1) vid2 = AddVertex(name_v2);
-        vertex[vid2].degree += weight;
-        edge_target_id[k] = vid2;
-        //printf("%s:%d\t%s:%d\n",name_v1,vid1,name_v2,vid2);
-        edge_weight[k++] = weight;
+		vid2 = SearchHashTable(name_v2);
+	    vertex[vid2].degree += weight;
+	    edge_target_id[k] = vid2;
+	    //printf("%d:%s:%d\t%d:%s:%d\n",x,name_v1,vid1,y,name_v2,vid2);
+	    edge_weight[k++] = weight;
 	}
 }
 

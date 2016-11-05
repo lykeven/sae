@@ -147,15 +147,14 @@ int makeData(string input,string output) {
     //ifstream fin("./resource/twitter_combined.txt");
     string buf;
     //for (int i = 0; i < 4; ++i) getline(fin, buf);
-    int v_cnt(-1);
-    map<string, int> nodeMap;
     while (1) {
         string x, y;
         if (!(fin >> x >> y)) break;
         int a = GetOrInsert(x);
         int b = GetOrInsert(y);
-        int c = max(max(v_cnt, a), b);
-        while (v_cnt < c) graph.AddVertex(++v_cnt, 0);
+        //printf("%s:%d\t\t%s:%d\n",x.c_str(),a,y.c_str(),b);
+        graph.AddVertex(a, 0);
+        graph.AddVertex(b, 0);
         graph.AddEdge(a, b, 0);
         graph.AddEdge(b, a, 0);
     }
@@ -179,7 +178,7 @@ void readNodeMap(string input)
     vid_t x,y;
     while(1){
         if (!(fin >> x >> y)) break;
-        mapToReal.insert(make_pair(x,y));
+         mapToReal.insert(make_pair(x,y));
          mapToSae.insert(make_pair(y,x));
     }
 }
@@ -643,7 +642,7 @@ void runDeepWalk(MappedGraph *graph,string input,string output)
     cout<<"Run deepwalk algorithm"<<endl<<endl;
     time_t start_time = clock();
     Deep_Walk dw(graph);
-    vector<vector<double> >  ans = dw.solve(5,100,100,10);
+    vector<vector<double> >  ans = dw.solve(5,100,100,5);
     time_t end_time = clock();
     printf( "Running time of deepwalk algorithm: %.4f\n",(end_time - start_time + 0.0) / CLOCKS_PER_SEC);
 }
@@ -670,10 +669,9 @@ void runLINE(MappedGraph *graph,string input,string output)
 
 void TestEmbedding(MappedGraph *graph,string input,string label_file,string output)
 {
-    //string label_file = "./resource/karate_label.txt";
     readNodeMap(input);
     Test_Embedding te(graph);
-    vector<pair<double,double>> ans = te.solve(5,100,100,5,1,mapToSae,label_file,output);
+    int ans = te.solve(5,100,100,5,1,mapToSae,label_file,output);
 }
 
 int main(int argc, char **argv) {

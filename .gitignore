@@ -1,6 +1,7 @@
 .gitignore
 *.DS_Store
 *.swp
+/.vscode/*
 /obj/*
 /bin/*
 /fake/*
@@ -9,3 +10,4 @@
 /data/*
 sae.cbp
 sae.layout
+task.sh

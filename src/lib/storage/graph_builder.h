@@ -88,7 +88,7 @@ namespace io {
             }
             auto id = map(key);
             auto local_id = vertex_data_types[data_type_rank].count ++;
-
+            //assert(key==id);
             std::string code = sae::serialization::convert_to_string(data);
 
             vertices[id] = vertex_with_data(id, local_id, data_type_rank, code);
@@ -125,7 +125,7 @@ namespace io {
 
             std::string code = sae::serialization::convert_to_string(data);
 
-//        std::cerr<<"datasave3: "<<data<<std::endl; 
+//        std::cerr<<"datasave3: "<<data<<std::endl;
             edges.push_back(edge_with_data(sid, tid, id, local_id, code, data_type_rank));
         }
 
