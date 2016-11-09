@@ -57,11 +57,10 @@ vector<double> logistic_regression(Vec &data, vector<int> &label)
     return weights;
 }
 
-vector<vector<double>> multi_label_regression(Vec &data, Lab &label)
+vector<vector<double>> multi_label_classification(Vec &data, Lab &label)
 {
     int m = data.size(), n = data[0].size(), K = label.size();
-    vector<double> temp2(n, 1.0);
-    Vec theta(K, temp2);
+    Vec theta(K, vector<double>(n, 1.0));
     for (int i = 0; i < K; i++)
         theta[i] = logistic_regression(data, label[i]);
     return theta;
@@ -91,7 +90,7 @@ pair<double, double> compute_accuracy(pair<pair<Vec, Vec>, pair<Lab, Lab>> &all_
 {
     Vec data_train = all_data.first.first, data_test = all_data.first.second;
     Lab label_train = all_data.second.first, label_test = all_data.second.second;
-    Vec weight = multi_label_regression(data_train, label_train);
+    Vec weight = multi_label_classification(data_train, label_train);
     int K = label_train.size(), m = data_test.size();
     vector<double> tp(K, 0), fn(K, 0), fp(K, 0), tn(K, 0);
     for (int i = 0; i < m; i++)
@@ -129,7 +128,7 @@ pair<double, double> compute_accuracy(pair<pair<Vec, Vec>, pair<Lab, Lab>> &all_
     double fp_temp = accumulate(fp.begin(), fp.end(), 0);
     double micro_f1 = 2 * tp_temp * tp_temp / (2 * tp_temp * tp_temp + tp_temp * fn_temp + tp_temp * fp_temp);
     //printf("macro_f1:%.3f\tmicro_f1:%.3f\n",macro_f1,micro_f1);
-    return make_pair(macro_f1, micro_f1);
+    return make_pair(micro_f1, macro_f1);
 }
 
 Lab ReadLabel(string label_file, map<vid_t, vid_t> &mapToSae)
@@ -231,16 +230,16 @@ vector<Res> test_algorithm(Vec &data, Lab &label, vector<double> ratios, int shu
         }
         accuracy.first /= shuffle_num;
         accuracy.second /= shuffle_num;
-        printf("ratio:%.3f\tmacro-f1:%.3f\tmicro_f1:%.3f\n", ratios[i], accuracy.first, accuracy.second);
+        printf("ratio:%.3f\tmicro-f1:%.3f\tmacro_f1:%.3f\n", ratios[i], accuracy.first, accuracy.second);
         accuracies.push_back(accuracy);
     }
     return accuracies;
 }
 
-int Test_Embedding::solve(int R, int T, int d, int w, int S, map<vid_t, vid_t> mapToSae, string label_file, string output_file)
+int Test_Embedding::solve(int R, int T, int d, int w, int S, int Th, int Neg, double init_rate, map<vid_t, vid_t> mapToSae, string label_file, string output_file)
 {
     srand(time(NULL));
-    vector<double> ratios = vector<double>{0.10, 0.30, 0.50, 0.70};
+    vector<double> ratios = vector<double>{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9};
     int shuffle_num = 3;
     string emb_file = "./output/embeddings";
     string lab_file = "./output/label";
@@ -249,24 +248,28 @@ int Test_Embedding::solve(int R, int T, int d, int w, int S, map<vid_t, vid_t> m
     vector<vector<Res>> all_accuracies(3);
 
     Deep_Walk dw(graph);
-    data = dw.solve(R, T, d, w);
+    data = dw.solve(R, T, d, w, Th, Neg, init_rate);
     write_data(data, label, emb_file + "1", lab_file + "1");
-    //all_accuracies[0] = test_algorithm(data, label, ratios, shuffle_num);
+    all_accuracies[0] = test_algorithm(data, label, ratios, shuffle_num);
 
     Node2Vec nv(graph);
-    data = nv.solve(R,T,d,w);
+    data = nv.solve(R, T, d, w, Th, Neg, init_rate);
     write_data(data, label, emb_file + "2", lab_file + "2");
-    //all_accuracies[1] = test_algorithm(data, label, ratios, shuffle_num);
-    
+    all_accuracies[1] = test_algorithm(data, label, ratios, shuffle_num);
+
     LINE ln(graph);
-    data = ln.solve(S,d);
+    data = ln.solve(S, d / 2, Th, Neg, init_rate);
     write_data(data, label, emb_file + "3", lab_file + "3");
-    //all_accuracies[2] = test_algorithm(data, label, ratios, shuffle_num);
-    //FILE *fo = fopen(output_file.c_str(), "wb");
-    //fprintf(fo, "Algorithm\tMacro-F1\tMicro-F1\n");
-    //fprintf(fo, "DeepWalk\t%.3f\t%.3f\t%.3f\n", accuracy[0].first,accuracy[0].second,(end_time1 - start_time1 + 0.0) / CLOCKS_PER_SEC);
-    //fprintf(fo, "Node2Vec\t%.3f\t%.3f\t%.3f\n", accuracy[1].first,accuracy[1].second,(end_time2 - start_time2 + 0.0) / CLOCKS_PER_SEC);
-    //fprintf(fo, "LINE\t%.3f\t%.3f\t%.3f\n", accuracy[2].first,accuracy[2].second,(end_time3 - start_time3 + 0.0) / CLOCKS_PER_SEC);
-    //fclose(fo);
+    all_accuracies[2] = test_algorithm(data, label, ratios, shuffle_num);
+
+    FILE *fo = fopen(output_file.c_str(), "wb");
+    fprintf(fo, "Algorithm performace\nAlgorithm 1:Deepwalk\tAlgorithm 2:Node2Vec\tAlgorithm 3:LINE\n");
+    for (int i = 0; i < all_accuracies.size(); i++)
+    {
+        fprintf(fo, "Algorithm %d\npercent\tMicro-F1\tMacro-F1\n", i+1);
+        for (int j = 0; j < all_accuracies[i].size(); j++)
+            fprintf(fo, "%.3f\t%.3f\t%.3f\n", ratios[j], all_accuracies[i][j].first, all_accuracies[i][j].second);
+    }
+    fclose(fo);
     return 0;
 }

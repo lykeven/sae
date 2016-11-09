@@ -49,6 +49,14 @@ cs: community detection with sampling:
 
 [-p FLOAT:probability]: sample probability for community detection;
 
+ne: network embedding; 
+
+[-r INT:run]: choose a algorithm for network embedding;
+
+te: test network embedding; 
+
+[-q INT:label file]: choose a label file for network embedding on multi-label classfication task;
+
 sr: run SimRank ;
 
 [-r INT:run]: choose a algorithm for SimRank;
@@ -149,6 +157,24 @@ To run community detection sampling algorithm based on Girvan-Newman, with commu
 -r 3 means speeding up louvain method, and k should not be appointed
 
 -r 4 means speeding up k community core aglorithm
+
+#### Example for Network Embedding
+The input file is placed at ./data/karate, and output file will be placed at ./output/network_embedding,
+and label file is placed at ./resource/karate_label.txt
+
+To run network embedding with aglorithm 1:
+
+./bin/sae -i ./data/karate -o ./output/network_embedding -t ne -r 1
+
+-r 1 means using Deepwalk
+
+-r 2 means using Node2Vec
+
+-r 3 means using LINE
+
+To test network embedding on multi-label classfication task:
+
+./bin/sae -i ./data/karate -o ./output/network_embedding -t te -q ./resource/karate_label.txt
 
 #### Example for SimRank
 The input file is placed at ./data/facebook, and output file will be placed at ./output/simrank

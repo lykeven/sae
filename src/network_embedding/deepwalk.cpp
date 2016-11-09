@@ -61,7 +61,7 @@ vector<vector<vid_t>> generate_paths(MappedGraph *graph, int R, int T)
     return paths;
 }
 
-std::vector<std::vector<double>> Deep_Walk::solve(int R, int T, int d, int w)
+std::vector<std::vector<double>> Deep_Walk::solve(int R, int T, int d, int w, int Th, int Neg, double init_rate)
 {
 
     int n = graph->VertexCount();
@@ -82,10 +82,10 @@ std::vector<std::vector<double>> Deep_Walk::solve(int R, int T, int d, int w)
     fclose(walk);
     printf("walks file saving completed!\n");
     */
-    printf("walking completed!\n");
+    printf("Walking completed!\n");
     Word2Vec wv(graph);
-    printf("training...\n");
-    vector<vector<double>> ans = wv.solve(sents, d, w, 10, 10, 0.025);
-    printf("training completed!\n");
+    printf("Training...\n");
+    vector<vector<double>> ans = wv.solve(sents, d, w, Th, Neg, init_rate);
+    printf("Training completed!\n");
     return ans;
 }

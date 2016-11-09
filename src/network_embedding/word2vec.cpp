@@ -8,11 +8,29 @@
 #include <iostream>
 #include <pthread.h>
 
-#define MAX_EXP 6
-#define EXP_SIZE 2000
+#define SIGMOID_BOUND 6
+#define SIGMOID_TABLE_SIZE 2000
+#define NEG_SAMPLING_POWER 0.75
 
 using namespace std;
 using namespace sae::io;
+
+int dimension = 100, windows = 5, num_neg = 10, num_thread = 10;
+int num_nodes, num_sentences;
+double fixed_alpha;
+
+vector<vector<vid_t>> all_corpus;
+vector<vector<double>> emb_nodes;
+vector<vector<double>> emb_nodes_sample;
+
+vector<double> sigm_table;
+vector<double> nodes_prob;
+vector<vid_t> nodes_table;
+
+struct argsformat
+{
+    int id;
+};
 
 Word2Vec::Word2Vec(MappedGraph *graph)
     : Solver(graph)
@@ -22,12 +40,6 @@ Word2Vec::Word2Vec(MappedGraph *graph)
 Word2Vec::~Word2Vec()
 {
 }
-
-struct argsformat
-{
-    int id;
-    Word2Vec *self;
-};
 
 vector<vid_t> Word2Vec::alias_setup(vector<double> &prob)
 {
@@ -71,142 +83,129 @@ vid_t Word2Vec::alias_draw(vector<vid_t> &J, vector<double> &p)
         return J[kk];
 }
 
-void *Word2Vec::TrainThread(void *args)
+void *TrainThread(void *args)
 {
-
     int id = ((argsformat *)args)->id;
-    Word2Vec *self = ((argsformat *)args)->self;
-    int start_sen = (double)id / self->I * self->M;
-    int end_sen = ((double)id + 1.0) / self->I * self->M;
-    for (int i = start_sen; i < end_sen; i++)
+    int start_sentence = (double)id / num_thread * num_sentences;
+    int end_sentence = ((double)id + 1.0) / num_thread * num_sentences;
+    for (int i = start_sentence; i < end_sentence; i++)
     {
-        vector<vid_t> corpus = self->corpus[i];
-        for (int j = 0; j < corpus.size(); j++)
+        for (int j = 0; j < all_corpus[i].size(); j++)
         {
-            vector<double> C(self->D, 0);
-            vector<double> E(self->D, 0);
-            int word = corpus[j];
+            vector<double> C(dimension, 0);
+            vector<double> E(dimension, 0);
+            vid_t word = all_corpus[i][j];
             //compute C
-            for (int p = j - self->W; p <= j + self->W; p++)
+            for (int p = j - windows; p <= j + windows; p++)
             {
-                int pos = corpus[p];
-                if (p < 0 || p >= corpus.size() || p == j)
+                vid_t pos = all_corpus[i][p];
+                if (p < 0 || p >= all_corpus[i].size() || p == j)
                     continue;
-                for (int d = 0; d < self->D; d++)
-                    C[d] += self->Vec[pos][d];
+                for (int d = 0; d < dimension; d++)
+                    C[d] += emb_nodes[pos][d];
             }
-
             //negative sampling
             int label = 0;
-            int sam_word = word;
-            for (int k = 0; k < self->K; k++)
+            vid_t target = word;
+            for (int k = 0; k < num_neg; k++)
             {
                 if (k == 0)
                 {
                     label = 1;
-                    sam_word = word;
+                    target = word;
                 }
                 else
                 {
                     label = 0;
-                    sam_word = self->alias_draw(self->sam_table, self->sam_pro);
+                    target = Word2Vec::alias_draw(nodes_table, nodes_prob);
                 }
                 //compute gradient for SGD
-                double f = 0;
-                for (int d = 0; d < self->D; d++)
-                    f += self->R[sam_word][d] * C[d];
-                double g = 0;
-                if (f > MAX_EXP)
-                    g = self->alpha * (label - 1);
-                else if (f < -MAX_EXP)
-                    g = self->alpha * (label - 0);
+                double f = 0, g = 0;
+                for (int d = 0; d < dimension; d++)
+                    f += emb_nodes_sample[target][d] * C[d];
+                if (f > SIGMOID_BOUND)
+                    g = fixed_alpha * (label - 1);
+                else if (f < -SIGMOID_BOUND)
+                    g = fixed_alpha * (label - 0);
                 else
-                    g = self->alpha * (label - self->exp_table[floor((f + MAX_EXP) * EXP_SIZE / MAX_EXP / 2)]);
+                    g = fixed_alpha * (label - sigm_table[floor((f + SIGMOID_BOUND) * SIGMOID_TABLE_SIZE / SIGMOID_BOUND / 2)]);
 
                 //accumulate error for word vector
-                for (int d = 0; d < self->D; d++)
-                    E[d] += g * self->R[sam_word][d];
+                for (int d = 0; d < dimension; d++)
+                    E[d] += g * emb_nodes_sample[target][d];
                 //update map matrix
-                for (int d = 0; d < self->D; d++)
-                    self->R[sam_word][d] += g * C[d];
+                for (int d = 0; d < dimension; d++)
+                    emb_nodes_sample[target][d] += g * C[d];
             }
-
             //update each context for vector of w
-            for (int p = j - self->W; p <= j + self->W; p++)
+            for (int p = j - windows; p <= j + windows; p++)
             {
-                int pos = corpus[p];
-                if (p < 0 || p >= corpus.size() || p == j)
+                vid_t pos = all_corpus[i][p];
+                if (p < 0 || p >= all_corpus[i].size() || p == j)
                     continue;
-                for (int d = 0; d < self->D; d++)
-                    self->Vec[pos][d] += E[d];
+                for (int d = 0; d < dimension; d++)
+                    emb_nodes[pos][d] += E[d];
             }
         }
     }
 }
 
-std::vector<std::vector<double>> Word2Vec::solve(vector<vector<vid_t>> corpus, int D, int W, int K, int I, double alpha)
+vector<vector<double>> Word2Vec::solve(vector<vector<vid_t>> corpus, int D, int W, int I, int K, double init_alpha)
 {
     //initialize basic parameters
-    this->corpus = corpus;
-    this->D = D;
-    this->W = W;
-    this->K = K;
-    this->I = I;
-    this->alpha = alpha;
-    this->M = corpus.size();
-    this->V = graph->VertexCount();
+    all_corpus = corpus;
+    dimension = D;
+    windows = W;
+    num_neg = K;
+    num_thread = I;
+    fixed_alpha = init_alpha;
+    num_sentences = corpus.size();
+    num_nodes = graph->VertexCount();
     srand(time(NULL));
 
     //initialize node embedding vector
-    vector<vector<double>> temp(this->V);
-    vector<vector<double>> temp1(this->V);
-    for (int i = 0; i < temp.size(); i++)
-        for (int j = 0; j < this->D; j++)
-        {
-            temp[i].push_back((rand() / (RAND_MAX + 0.0) - 0.5) / this->D);
-            temp1[i].push_back(0);
-        }
-    this->Vec = temp;
-    this->R = temp1;
+    emb_nodes = vector<vector<double>>(num_nodes, vector<double>(dimension, 0));
+    emb_nodes_sample = vector<vector<double>>(num_nodes, vector<double>(dimension, 0));
+    for (int i = 0; i < num_nodes; i++)
+        for (int j = 0; j < dimension; j++)
+            emb_nodes[i][j] = (rand() / (RAND_MAX + 0.0) - 0.5) / dimension;
 
     //set up sample table with alias sampling
-    vector<double> temp2(this->V, 0);
-    this->sam_pro = temp2;
-    for (int i = 0; i < this->corpus.size(); i++)
-        for (int j = 0; j < this->corpus[i].size(); j++)
-            this->sam_pro[this->corpus[i][j]] += 1;
-    for (int i = 0; i < this->V; i++)
-        this->sam_pro[i] = pow(this->sam_pro[i], 0.75);
-    double sum = accumulate(this->sam_pro.begin(), this->sam_pro.end(), 0);
-    for (int i = 0; i < this->V; i++)
-        this->sam_pro[i] /= sum;
-    this->sam_table = Word2Vec::alias_setup(this->sam_pro);
+    nodes_prob = vector<double>(num_nodes, 0);
+    for (int i = 0; i < all_corpus.size(); i++)
+        for (int j = 0; j < all_corpus[i].size(); j++)
+            nodes_prob[all_corpus[i][j]] += 1;
+    for (int i = 0; i < num_nodes; i++)
+        nodes_prob[i] = pow(nodes_prob[i], NEG_SAMPLING_POWER);
+    double sum = accumulate(nodes_prob.begin(), nodes_prob.end(), 0);
+    for (int i = 0; i < num_nodes; i++)
+        nodes_prob[i] /= sum;
+    nodes_table = Word2Vec::alias_setup(nodes_prob);
 
     //set up exp table
-    vector<double> temp3(EXP_SIZE, 0);
-    this->exp_table = temp3;
-    for (int i = 0; i < EXP_SIZE; i++)
+    sigm_table = vector<double>(SIGMOID_TABLE_SIZE, 0);
+    for (int i = 0; i < SIGMOID_TABLE_SIZE; i++)
     {
-        this->exp_table[i] = exp((i * 1.0 / EXP_SIZE * 2 - 1) * MAX_EXP);
-        this->exp_table[i] = this->exp_table[i] / (this->exp_table[i] + 1);
+        sigm_table[i] = exp((i * 1.0 / SIGMOID_TABLE_SIZE * 2 - 1) * SIGMOID_BOUND);
+        sigm_table[i] = sigm_table[i] / (sigm_table[i] + 1);
     }
 
     //set up multi-thread
-    pthread_t *pt = (pthread_t *)malloc(I * sizeof(pthread_t));
-    argsformat *args = (argsformat *)calloc(I, sizeof(argsformat));
+    pthread_t *pt = (pthread_t *)malloc(num_thread * sizeof(pthread_t));
+    argsformat *args = (argsformat *)calloc(num_thread, sizeof(argsformat));
     if (pt == NULL)
     {
         fprintf(stderr, "Memory allocation failed.");
         exit(0);
     }
-    for (int i = 0; i < I; i++)
+    for (int i = 0; i < num_thread; i++)
     {
         args[i].id = i;
-        args[i].self = this;
-        pthread_create(&pt[i], NULL, Word2Vec::TrainThread, (void *)&args[i]);
+        pthread_create(&pt[i], NULL, TrainThread, (void *)&args[i]);
     }
-    for (int i = 0; i < I; i++)
+
+    for (int i = 0; i < num_thread; i++)
         pthread_join(pt[i], NULL);
 
-    return this->Vec;
+    return emb_nodes;
 }

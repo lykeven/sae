@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <iostream>
 #include <initializer_list>
+#include <assert.h>
 using namespace std;
 using namespace sae::io;
 
@@ -20,7 +21,7 @@ Node2Vec::~Node2Vec()
 
 vector<vector<vid_t>> generate_2nd_paths(MappedGraph *graph, int R, int T)
 {
-    double p = 1, q = 0.5;
+    double p = 4, q = 1;
     int n = graph->VertexCount();
     vector<vid_t> temp(n, 0);
     vector<vector<vid_t>> neighbor(n);
@@ -37,6 +38,7 @@ vector<vector<vid_t>> generate_2nd_paths(MappedGraph *graph, int R, int T)
             neighbor[i].push_back(eiter->TargetId());
             is_neighbor[i].insert(make_pair(eiter->TargetId(), true));
         }
+        assert(neighbor[i].size() > 0);
     }
     for (int i = 0; i < n; i++)
     {
@@ -67,7 +69,7 @@ vector<vector<vid_t>> generate_2nd_paths(MappedGraph *graph, int R, int T)
         alias_edges[i] = i_neighbor;
         alias_probs[i] = i_neighbor_probs;
     }
-
+    printf("before sample paths\n");
     vector<vector<vid_t>> paths;
     for (int i = 0; i < R; i++)
     {
@@ -100,7 +102,7 @@ vector<vector<vid_t>> generate_2nd_paths(MappedGraph *graph, int R, int T)
     return paths;
 }
 
-std::vector<std::vector<double>> Node2Vec::solve(int R, int T, int d, int w)
+std::vector<std::vector<double>> Node2Vec::solve(int R, int T, int d, int w, int Th, int Neg, double init_rate)
 {
 
     int n = graph->VertexCount();
@@ -121,10 +123,10 @@ std::vector<std::vector<double>> Node2Vec::solve(int R, int T, int d, int w)
     fclose(walk);
     printf("walks file saving completed!\n");
     */
-    printf("walking completed!\n");
+    printf("Walking completed!\n");
     Word2Vec wv(graph);
-    printf("training...\n");
-    vector<vector<double>> ans = wv.solve(sents, d, w, 10, 10, 0.025);
-    printf("training completed!\n");
+    printf("Training...\n");
+    vector<vector<double>> ans = wv.solve(sents, d, w, Th, Neg, init_rate);
+    printf("Training completed!\n");
     return ans;
 }
